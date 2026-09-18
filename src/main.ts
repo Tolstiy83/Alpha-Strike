@@ -14,11 +14,15 @@ class GameScene extends Phaser.Scene {
   private lastShotTime = 0;
   private fireRate = 250;
 
-  private lastEnemySpawnTime = 0;
-  private enemySpawnRate = 1000;
-
   private score = 0;
   private scoreText!: Phaser.GameObjects.Text;
+
+  private wave = 0;
+  private enemiesToSpawn = 0;
+  private enemiesAlive = 0;
+  private waveInProgress = false;
+
+  private waveText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('GameScene');
@@ -83,6 +87,17 @@ class GameScene extends Phaser.Scene {
       }
     );
 
+    this.waveText = this.add.text(
+      650,
+      20,
+      'Wave: 0',
+      {
+        fontFamily: 'Arial',
+        fontSize: '20px',
+        color: '#ffffff',
+      }
+    );
+
     this.add.text(
       20,
       85,
@@ -94,25 +109,55 @@ class GameScene extends Phaser.Scene {
       }
     );
 
-    // Spawn one immediately for testing
-    this.fireProjectile();
-    this.spawnEnemy(); 
+    this.startNextWave();
   }
 
   update(time: number) {
     this.player.update();
 
-    // Auto fire
+    // Automatic shooting
     if (time - this.lastShotTime >= this.fireRate) {
       this.fireProjectile();
       this.lastShotTime = time;
     }
+  }
 
-    // Spawn enemies
-    if (time - this.lastEnemySpawnTime >= this.enemySpawnRate) {
-      this.spawnEnemy();
-      this.lastEnemySpawnTime = time;
-    }
+  private startNextWave() {
+    this.wave++;
+
+    this.waveText.setText(
+      `Wave: ${this.wave}`
+    );
+
+    this.waveInProgress = true;
+
+    // Each wave contains more enemies
+    this.enemiesToSpawn =
+      4 + this.wave * 2;
+
+    this.enemiesAlive =
+      this.enemiesToSpawn;
+
+    let enemiesSpawned = 0;
+
+    const spawnTimer = this.time.addEvent({
+      delay: 500,
+
+      callback: () => {
+        this.spawnEnemy();
+
+        enemiesSpawned++;
+
+        if (
+          enemiesSpawned >=
+          this.enemiesToSpawn
+        ) {
+          spawnTimer.destroy();
+        }
+      },
+
+      loop: true,
+    });
   }
 
   private fireProjectile() {
@@ -142,19 +187,24 @@ class GameScene extends Phaser.Scene {
 
     this.enemies.add(enemy);
 
-    // Set velocity AFTER adding to physics group
-    enemy.setVelocityY(100);
+    const enemySpeed =
+      80 + this.wave * 10;
+
+    enemy.setVelocityY(enemySpeed);
   }
 
   private handleBulletEnemyCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
     (bulletObject, enemyObject) => {
+      const bullet =
+        bulletObject as Projectile;
 
-      const bullet = bulletObject as Projectile;
-      const enemy = enemyObject as Enemy;
+      const enemy =
+        enemyObject as Enemy;
 
       bullet.destroy();
 
-      const enemyKilled = enemy.takeDamage(1);
+      const enemyKilled =
+        enemy.takeDamage(1);
 
       if (enemyKilled) {
         this.score += 100;
@@ -162,8 +212,32 @@ class GameScene extends Phaser.Scene {
         this.scoreText.setText(
           `Score: ${this.score}`
         );
+
+        this.enemiesAlive--;
+
+        this.checkWaveComplete();
       }
     };
+
+  private checkWaveComplete() {
+    if (
+      this.waveInProgress &&
+      this.enemiesAlive <= 0
+    ) {
+      this.waveInProgress = false;
+
+      this.waveText.setText(
+        `Wave ${this.wave} Complete!`
+      );
+
+      this.time.delayedCall(
+        2000,
+        () => {
+          this.startNextWave();
+        }
+      );
+    }
+  }
 
   private createTextures() {
     const graphics =
