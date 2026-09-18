@@ -21,14 +21,32 @@ class GameScene extends Phaser.Scene {
   private enemiesToSpawn = 0;
   private enemiesAlive = 0;
   private waveInProgress = false;
-
   private waveText!: Phaser.GameObjects.Text;
+
+  private playerHealth = 100;
+  private maxPlayerHealth = 100;
+  private healthText!: Phaser.GameObjects.Text;
+
+  private isGameOver = false;
 
   constructor() {
     super('GameScene');
   }
 
   create() {
+    this.score = 0;
+
+    this.wave = 0;
+    this.enemiesToSpawn = 0;
+    this.enemiesAlive = 0;
+    this.waveInProgress = false;
+
+    this.playerHealth = this.maxPlayerHealth;
+
+    this.isGameOver = false;
+
+    this.lastShotTime = 0;
+
     this.createTextures();
 
     // -----------------------
@@ -87,6 +105,17 @@ class GameScene extends Phaser.Scene {
       }
     );
 
+    this.healthText = this.add.text(
+      20,
+      85,
+      `Health: ${this.playerHealth}/${this.maxPlayerHealth}`,
+      {
+        fontFamily: 'Arial',
+        fontSize: '20px',
+        color: '#ffffff',
+      }
+    );
+
     this.waveText = this.add.text(
       650,
       20,
@@ -100,7 +129,7 @@ class GameScene extends Phaser.Scene {
 
     this.add.text(
       20,
-      85,
+      120,
       'Move: ← → or A / D',
       {
         fontFamily: 'Arial',
@@ -110,9 +139,22 @@ class GameScene extends Phaser.Scene {
     );
 
     this.startNextWave();
+
+    this.input.keyboard!.on(
+      'keydown-SPACE',
+      () => {
+        if (this.isGameOver) {
+          this.scene.restart();
+        }
+      }
+    );
   }
 
   update(time: number) {
+    if (this.isGameOver) {
+      return;
+    }
+
     this.player.update();
 
     // Automatic shooting
@@ -120,6 +162,111 @@ class GameScene extends Phaser.Scene {
       this.fireProjectile();
       this.lastShotTime = time;
     }
+
+    // Check enemies that reached the bottom
+    for (const child of this.enemies.getChildren()) {
+      const enemy = child as Enemy;
+
+      if (
+        enemy.active &&
+        enemy.y > this.scale.height
+      ) {
+        this.enemyEscaped(enemy);
+      }
+    }
+
+    // Clean up bullets that leave the screen
+    for (const child of this.projectiles.getChildren()) {
+      const projectile = child as Projectile;
+
+      if (
+        projectile.active &&
+        projectile.y < -30
+      ) {
+        projectile.destroy();
+      }
+    }
+  }
+
+  private enemyEscaped(enemy: Enemy) {
+    enemy.destroy();
+
+    this.enemiesAlive--;
+
+    this.damagePlayer(20);
+
+    if (!this.isGameOver) {
+      this.checkWaveComplete();
+    }
+  }
+
+  private damagePlayer(amount: number) {
+    this.playerHealth -= amount;
+
+    if (this.playerHealth < 0) {
+      this.playerHealth = 0;
+    }
+
+    this.healthText.setText(
+      `Health: ${this.playerHealth}/${this.maxPlayerHealth}`
+    );
+
+    if (this.playerHealth <= 0) {
+      this.gameOver();
+    }
+  }
+
+  private gameOver() {
+    this.isGameOver = true;
+    this.waveInProgress = false;
+
+    // Stop all Phaser timers
+    this.time.removeAllEvents();
+
+    // Stop enemies
+    for (const child of this.enemies.getChildren()) {
+      const enemy = child as Enemy;
+
+      if (enemy.active) {
+        enemy.setVelocity(0, 0);
+      }
+    }
+
+    // Remove remaining bullets
+    this.projectiles.clear(true, true);
+
+    this.add.text(
+      this.scale.width / 2,
+      this.scale.height / 2,
+      'GAME OVER',
+      {
+        fontFamily: 'Arial',
+        fontSize: '48px',
+        color: '#ff5252',
+      }
+    ).setOrigin(0.5);
+
+    this.add.text(
+      this.scale.width / 2,
+      this.scale.height / 2 + 60,
+      `Score: ${this.score}`,
+      {
+        fontFamily: 'Arial',
+        fontSize: '24px',
+        color: '#ffffff',
+      }
+    ).setOrigin(0.5);
+
+    this.add.text(
+      this.scale.width / 2,
+      this.scale.height / 2 + 110,
+      'Press SPACE to restart',
+      {
+        fontFamily: 'Arial',
+        fontSize: '20px',
+        color: '#aaaaaa',
+      }
+    ).setOrigin(0.5);
   }
 
   private startNextWave() {
@@ -240,18 +387,20 @@ class GameScene extends Phaser.Scene {
   }
 
   private createTextures() {
-    const graphics =
-      this.make.graphics({
-        x: 0,
-        y: 0,
-      });
+    if (
+      this.textures.exists('player') &&
+      this.textures.exists('bullet') &&
+      this.textures.exists('enemy')
+    ) {
+      return;
+    }
 
-    // -----------------------
-    // Player
-    // -----------------------
+    const graphics = this.make.graphics({
+      x: 0,
+      y: 0,
+    });
 
     graphics.fillStyle(0x4fc3f7);
-
     graphics.fillTriangle(
       20,
       0,
@@ -260,7 +409,6 @@ class GameScene extends Phaser.Scene {
       40,
       40
     );
-
     graphics.generateTexture(
       'player',
       40,
@@ -269,19 +417,13 @@ class GameScene extends Phaser.Scene {
 
     graphics.clear();
 
-    // -----------------------
-    // Bullet
-    // -----------------------
-
     graphics.fillStyle(0xffeb3b);
-
     graphics.fillRect(
       0,
       0,
       6,
       18
     );
-
     graphics.generateTexture(
       'bullet',
       6,
@@ -290,19 +432,13 @@ class GameScene extends Phaser.Scene {
 
     graphics.clear();
 
-    // -----------------------
-    // Enemy
-    // -----------------------
-
     graphics.fillStyle(0xff5252);
-
     graphics.fillRect(
       0,
       0,
       36,
       36
     );
-
     graphics.generateTexture(
       'enemy',
       36,
