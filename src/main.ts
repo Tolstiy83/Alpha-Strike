@@ -29,6 +29,11 @@ class GameScene extends Phaser.Scene {
 
   private isGameOver = false;
 
+  private healthBarBackground!: Phaser.GameObjects.Rectangle;
+  private healthBarFill!: Phaser.GameObjects.Rectangle;
+
+  private healthBarWidth = 200;
+
   constructor() {
     super('GameScene');
   }
@@ -116,6 +121,26 @@ class GameScene extends Phaser.Scene {
       }
     );
 
+    this.healthBarBackground = this.add.rectangle(
+      20,
+      115,
+      this.healthBarWidth,
+      14,
+      0x333333
+    );
+
+    this.healthBarBackground.setOrigin(0, 0.5);
+
+    this.healthBarFill = this.add.rectangle(
+      20,
+      115,
+      this.healthBarWidth,
+      14,
+      0x4caf50
+    );
+
+    this.healthBarFill.setOrigin(0, 0.5);
+
     this.waveText = this.add.text(
       650,
       20,
@@ -129,7 +154,7 @@ class GameScene extends Phaser.Scene {
 
     this.add.text(
       20,
-      120,
+      135,
       'Move: ← → or A / D',
       {
         fontFamily: 'Arial',
@@ -211,6 +236,21 @@ class GameScene extends Phaser.Scene {
       `Health: ${this.playerHealth}/${this.maxPlayerHealth}`
     );
 
+    const healthPercent =
+      this.playerHealth / this.maxPlayerHealth;
+
+    this.healthBarFill.width =
+      this.healthBarWidth * healthPercent;
+
+    // Damage feedback
+    this.cameras.main.flash(
+      150,
+      255,
+      50,
+      50,
+      false
+    );
+
     if (this.playerHealth <= 0) {
       this.gameOver();
     }
@@ -270,15 +310,45 @@ class GameScene extends Phaser.Scene {
   }
 
   private startNextWave() {
+    if (this.isGameOver) {
+      return;
+    }
+
     this.wave++;
 
     this.waveText.setText(
       `Wave: ${this.wave}`
     );
 
+    const announcement =
+      this.add.text(
+        this.scale.width / 2,
+        this.scale.height / 2,
+        `WAVE ${this.wave}`,
+        {
+          fontFamily: 'Arial',
+          fontSize: '48px',
+          color: '#ffffff',
+        }
+      );
+
+    announcement.setOrigin(0.5);
+
+    this.time.delayedCall(
+      1500,
+      () => {
+        announcement.destroy();
+
+        if (!this.isGameOver) {
+          this.beginWave();
+        }
+      }
+    );
+}
+
+  private beginWave() {
     this.waveInProgress = true;
 
-    // Each wave contains more enemies
     this.enemiesToSpawn =
       4 + this.wave * 2;
 
@@ -287,24 +357,29 @@ class GameScene extends Phaser.Scene {
 
     let enemiesSpawned = 0;
 
-    const spawnTimer = this.time.addEvent({
-      delay: 500,
+    const spawnTimer =
+      this.time.addEvent({
+        delay: 500,
 
-      callback: () => {
-        this.spawnEnemy();
+        callback: () => {
+          if (this.isGameOver) {
+            return;
+          }
 
-        enemiesSpawned++;
+          this.spawnEnemy();
 
-        if (
-          enemiesSpawned >=
-          this.enemiesToSpawn
-        ) {
-          spawnTimer.destroy();
-        }
-      },
+          enemiesSpawned++;
 
-      loop: true,
-    });
+          if (
+            enemiesSpawned >=
+            this.enemiesToSpawn
+          ) {
+            spawnTimer.destroy();
+          }
+        },
+
+        loop: true,
+      });
   }
 
   private fireProjectile() {
@@ -329,7 +404,7 @@ class GameScene extends Phaser.Scene {
     const enemy = new Enemy(
       this,
       x,
-      20
+      -20
     );
 
     this.enemies.add(enemy);
@@ -368,22 +443,39 @@ class GameScene extends Phaser.Scene {
 
   private checkWaveComplete() {
     if (
-      this.waveInProgress &&
-      this.enemiesAlive <= 0
+      !this.waveInProgress ||
+      this.enemiesAlive > 0 ||
+      this.isGameOver
     ) {
-      this.waveInProgress = false;
+      return;
+    }
 
-      this.waveText.setText(
-        `Wave ${this.wave} Complete!`
-      );
+    this.waveInProgress = false;
 
-      this.time.delayedCall(
-        2000,
-        () => {
-          this.startNextWave();
+    const announcement =
+      this.add.text(
+        this.scale.width / 2,
+        this.scale.height / 2,
+        `WAVE ${this.wave} COMPLETE`,
+        {
+          fontFamily: 'Arial',
+          fontSize: '36px',
+          color: '#ffffff',
         }
       );
-    }
+
+    announcement.setOrigin(0.5);
+
+    this.time.delayedCall(
+      1500,
+      () => {
+        announcement.destroy();
+
+        if (!this.isGameOver) {
+          this.startNextWave();
+        }
+      }
+    );
   }
 
   private createTextures() {
