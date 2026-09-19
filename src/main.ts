@@ -4,6 +4,8 @@ import Phaser from 'phaser';
 import { Player } from './entities/Player';
 import { Projectile } from './entities/Projectile';
 import { Enemy } from './entities/Enemy';
+import { UpgradeContainer } from './entities/UpgradeContainer';
+import { UpgradeCard } from './entities/UpgradeCard';
 
 class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -33,6 +35,11 @@ class GameScene extends Phaser.Scene {
   private healthBarFill!: Phaser.GameObjects.Rectangle;
 
   private healthBarWidth = 200;
+
+  private upgradeContainers!: Phaser.Physics.Arcade.Group;
+  private upgradeCards!: Phaser.Physics.Arcade.Group;
+
+  private upgradeSpawnedThisWave = false;
 
   constructor() {
     super('GameScene');
@@ -73,6 +80,16 @@ class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
 
     // -----------------------
+    // Upgrade groups
+    // -----------------------
+
+    this.upgradeContainers =
+      this.physics.add.group();
+
+    this.upgradeCards =
+      this.physics.add.group();
+
+    // -----------------------
     // Bullet / enemy collision
     // -----------------------
 
@@ -80,6 +97,26 @@ class GameScene extends Phaser.Scene {
       this.projectiles,
       this.enemies,
       this.handleBulletEnemyCollision,
+      undefined,
+      this
+    );
+
+    // -----------------------
+    // Bullet / container collision
+    // -----------------------
+
+    this.physics.add.overlap(
+      this.projectiles,
+      this.upgradeContainers,
+      this.handleBulletContainerCollision,
+      undefined,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.upgradeCards,
+      this.handlePlayerCardCollision,
       undefined,
       this
     );
@@ -316,6 +353,8 @@ class GameScene extends Phaser.Scene {
 
     this.wave++;
 
+    this.upgradeSpawnedThisWave = false;
+
     this.waveText.setText(
       `Wave: ${this.wave}`
     );
@@ -344,7 +383,7 @@ class GameScene extends Phaser.Scene {
         }
       }
     );
-}
+  }
 
   private beginWave() {
     this.waveInProgress = true;
@@ -380,6 +419,19 @@ class GameScene extends Phaser.Scene {
 
         loop: true,
       });
+
+    if (!this.upgradeSpawnedThisWave) {
+      this.time.delayedCall(
+        2000,
+        () => {
+          if (!this.isGameOver) {
+            this.spawnUpgradeContainer();
+          }
+        }
+      );
+
+      this.upgradeSpawnedThisWave = true;
+    }
   }
 
   private fireProjectile() {
@@ -441,6 +493,78 @@ class GameScene extends Phaser.Scene {
       }
     };
 
+  private handleBulletContainerCollision:
+    Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+      (bulletObject, containerObject) => {
+
+        const bullet =
+          bulletObject as Projectile;
+
+        if (!(containerObject instanceof UpgradeContainer)) {
+          return;
+        }
+
+        const container = containerObject;
+
+        bullet.destroy();
+
+        const destroyed =
+          container.takeDamage(1);
+
+        if (destroyed) {
+          this.destroyUpgradeContainer(
+            container
+          );
+        }
+      };
+
+  private destroyUpgradeContainer(
+      container: UpgradeContainer
+    ) {
+      const x = container.x;
+      const y = container.y;
+
+      container.destroy();
+
+      const card = new UpgradeCard(
+        this,
+        x,
+        y,
+        'rapid-fire'
+      );
+
+      this.upgradeCards.add(card);
+
+      card.setVelocityY(100);
+    }
+  
+  private handlePlayerCardCollision:
+    Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+      (_playerObject, cardObject) => {
+
+        const card =
+          cardObject as UpgradeCard;
+
+        console.log(
+          `Collected upgrade: ${card.upgradeId}`
+        );
+
+        card.destroy();
+      };
+
+  private spawnUpgradeContainer() {
+    const container =
+      new UpgradeContainer(
+        this,
+        this.scale.width / 2,
+        180
+      );
+
+    this.upgradeContainers.add(
+      container
+    );
+  }
+
   private checkWaveComplete() {
     if (
       !this.waveInProgress ||
@@ -482,7 +606,9 @@ class GameScene extends Phaser.Scene {
     if (
       this.textures.exists('player') &&
       this.textures.exists('bullet') &&
-      this.textures.exists('enemy')
+      this.textures.exists('enemy') &&
+      this.textures.exists('upgrade-container') &&
+      this.textures.exists('upgrade-card')
     ) {
       return;
     }
@@ -536,6 +662,30 @@ class GameScene extends Phaser.Scene {
       36,
       36
     );
+
+    // Upgrade container
+    graphics.clear();
+
+    graphics.fillStyle(0x8d6e63);
+    graphics.fillRect(0, 0, 60, 45);
+
+    graphics.generateTexture(
+      'upgrade-container',
+      60,
+      45
+    );
+
+    // Upgrade card
+    graphics.clear();
+
+    graphics.fillStyle(0x42a5f5);
+    graphics.fillRect(0, 0, 40, 55);
+
+    graphics.generateTexture(
+      'upgrade-card',
+      40,
+      55
+  );
 
     graphics.destroy();
   }
