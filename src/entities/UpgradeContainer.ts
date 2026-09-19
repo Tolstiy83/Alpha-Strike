@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
   private health = 5;
-  private isDestroyed = false;
+  private isBroken = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -16,7 +16,7 @@ export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
   }
 
   takeDamage(amount: number): boolean {
-    if (this.isDestroyed) {
+    if (this.isBroken) {
       return false;
     }
 
@@ -26,13 +26,13 @@ export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
     this.setTint(0xffffff);
 
     this.scene.time.delayedCall(50, () => {
-      if (this.active && !this.isDestroyed) {
+      if (this.active && !this.isBroken) {
         this.clearTint();
       }
     });
 
     if (this.health <= 0) {
-      this.isDestroyed = true;
+      this.isBroken = true;
 
       const body =
         this.body as Phaser.Physics.Arcade.Body;
