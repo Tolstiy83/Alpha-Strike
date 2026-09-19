@@ -14,8 +14,11 @@ class GameScene extends Phaser.Scene {
   private enemies!: Phaser.Physics.Arcade.Group;
 
   private lastShotTime = 0;
-  private fireRate = 250;
-
+  private weaponStats = {
+    fireRate: 250,
+    damage: 1,
+    projectileCount: 1,
+  };
   private score = 0;
   private scoreText!: Phaser.GameObjects.Text;
 
@@ -58,6 +61,12 @@ class GameScene extends Phaser.Scene {
     this.isGameOver = false;
 
     this.lastShotTime = 0;
+
+    this.weaponStats = {
+      fireRate: 250,
+      damage: 1,
+      projectileCount: 1,
+    };
 
     this.createTextures();
 
@@ -220,7 +229,10 @@ class GameScene extends Phaser.Scene {
     this.player.update();
 
     // Automatic shooting
-    if (time - this.lastShotTime >= this.fireRate) {
+    if (
+      time - this.lastShotTime >=
+      this.weaponStats.fireRate
+    ) {
       this.fireProjectile();
       this.lastShotTime = time;
     }
@@ -246,6 +258,27 @@ class GameScene extends Phaser.Scene {
         projectile.y < -30
       ) {
         projectile.destroy();
+      }
+    }
+
+    // Clean up upgrade cards that leave the screen
+    for (
+      const child of
+      this.upgradeCards.getChildren()
+    ) {
+      const card =
+        child as UpgradeCard;
+
+      if (card.active) {
+        card.update();
+
+        // Remove missed cards
+        if (
+          card.y >
+          this.scale.height + 50
+        ) {
+          card.destroy();
+        }
       }
     }
   }
@@ -541,16 +574,69 @@ class GameScene extends Phaser.Scene {
   private handlePlayerCardCollision:
     Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
       (_playerObject, cardObject) => {
-
         const card =
           cardObject as UpgradeCard;
 
-        console.log(
-          `Collected upgrade: ${card.upgradeId}`
-        );
+        this.applyUpgrade(card.upgradeId);
 
         card.destroy();
       };
+
+  private applyUpgrade(upgradeId: string) {
+    switch (upgradeId) {
+      case 'rapid-fire':
+        this.weaponStats.fireRate =
+          Math.max(
+            75,
+            this.weaponStats.fireRate * 0.8
+          );
+
+        this.showUpgradeNotification(
+          'RAPID FIRE',
+          'Fire Rate +20%'
+        );
+
+        break;
+      default:
+        console.warn(
+          `Unknown upgrade: ${upgradeId}`
+        );
+    }
+  }
+
+  private showUpgradeNotification(
+    title: string,
+    description: string
+  ) {
+    const notification =
+      this.add.text(
+        this.scale.width / 2,
+        this.scale.height - 120,
+        `${title}\n${description}`,
+        {
+          fontFamily: 'Arial',
+          fontSize: '22px',
+          color: '#ffffff',
+          align: 'center',
+          backgroundColor: '#000000',
+          padding: {
+            x: 16,
+            y: 10,
+          },
+        }
+      );
+
+    notification
+      .setOrigin(0.5)
+      .setDepth(100);
+
+    this.time.delayedCall(
+      1200,
+      () => {
+        notification.destroy();
+      }
+    );
+  }
 
   private spawnUpgradeContainer() {
     const container =
