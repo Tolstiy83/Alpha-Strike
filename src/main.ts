@@ -1,7 +1,8 @@
 import './style.css';
 import Phaser from 'phaser';
 
-import { Troop } from './entities/Troops';
+import { TroopSystem } from './systems/TroopSystems';
+
 import { Player } from './entities/Player';
 import { Projectile } from './entities/Projectile';
 import { Enemy } from './entities/Enemy';
@@ -11,12 +12,7 @@ import { UpgradeCard } from './entities/UpgradeCard';
 class GameScene extends Phaser.Scene {
   private player!: Player;
 
-  private troops!: Phaser.Physics.Arcade.Group;
-
-  private troopSpacingX = 45;
-  private troopSpacingY = 45;
-
-  private troopsPerRow = 5;
+  private troopSystem!: TroopSystem;
 
   private projectiles!: Phaser.Physics.Arcade.Group;
   private enemies!: Phaser.Physics.Arcade.Group;
@@ -76,8 +72,6 @@ class GameScene extends Phaser.Scene {
       projectileCount: 1,
     };
 
-    this.troops = this.physics.add.group();
-
     this.createTextures();
 
     // -----------------------
@@ -90,6 +84,11 @@ class GameScene extends Phaser.Scene {
       500
     );
 
+    this.troopSystem =
+      new TroopSystem(
+        this,
+        this.player
+      );
     // -----------------------
     // Physics groups
     // -----------------------
@@ -238,9 +237,7 @@ class GameScene extends Phaser.Scene {
 
     this.player.update();
 
-    this.constrainPlayerToFormation();
-
-    this.updateTroopFormation();
+    this.troopSystem.update();
 
     // Automatic shooting
     if (
@@ -482,26 +479,25 @@ class GameScene extends Phaser.Scene {
   }
 
   private fireSquad() {
-    // Player fires
+    // Player
     this.fireProjectileFrom(
       this.player.x,
       this.player.y - 30
     );
 
-    // Every troop fires
+    // Troops
     for (
-      const child of
-      this.troops.getChildren()
+      const troop of
+      this.troopSystem.getTroops()
     ) {
-      const troop =
-        child as Troop;
-
-      if (troop.active) {
-        this.fireProjectileFrom(
-          troop.x,
-          troop.y - 30
-        );
+      if (!troop.active) {
+        continue;
       }
+
+      this.fireProjectileFrom(
+        troop.x,
+        troop.y - 30
+      );
     }
   }
 
@@ -655,7 +651,7 @@ class GameScene extends Phaser.Scene {
         break;
 
       case 'add-troop':
-        this.addTroop();
+        this.troopSystem.addTroop();
 
         this.showUpgradeNotification(
           '+1 TROOP',
@@ -669,112 +665,6 @@ class GameScene extends Phaser.Scene {
           `Unknown upgrade: ${upgradeId}`
         );
     }
-  }
-
-  private addTroop() {
-    const troop = new Troop(
-      this,
-      this.player.x,
-      this.player.y
-    );
-
-    this.troops.add(troop);
-
-    this.updateTroopFormation();
-  }
-
-  private updateTroopFormation() {
-    const troops =
-      this.troops.getChildren() as Troop[];
-
-    troops.forEach(
-      (troop, index) => {
-
-        const row =
-          Math.floor(
-            index / this.troopsPerRow
-          );
-
-        const indexInRow =
-          index % this.troopsPerRow;
-
-        const troopsInThisRow =
-          Math.min(
-            this.troopsPerRow,
-            troops.length -
-              row * this.troopsPerRow
-          );
-
-        const rowWidth =
-          (troopsInThisRow - 1) *
-          this.troopSpacingX;
-
-        const startX =
-          this.player.x -
-          rowWidth / 2;
-
-        const targetX =
-          startX +
-          indexInRow *
-            this.troopSpacingX;
-
-        const targetY =
-          this.player.y +
-          50 +
-          row *
-            this.troopSpacingY;
-
-        troop.x = Phaser.Math.Linear(
-          troop.x,
-          targetX,
-          0.15
-        );
-
-        troop.y = Phaser.Math.Linear(
-          troop.y,
-          targetY,
-          0.15
-        );
-      }
-    );
-  }
-
-  private constrainPlayerToFormation() {
-    const troopCount =
-      this.troops.getLength();
-
-    if (troopCount === 0) {
-      return;
-    }
-
-    const widestRowCount =
-      Math.min(
-        troopCount,
-        this.troopsPerRow
-      );
-
-    const formationHalfWidth =
-      ((widestRowCount - 1) *
-        this.troopSpacingX) /
-      2;
-
-    const margin = 25;
-
-    const minX =
-      formationHalfWidth +
-      margin;
-
-    const maxX =
-      this.scale.width -
-      formationHalfWidth -
-      margin;
-
-    this.player.x =
-      Phaser.Math.Clamp(
-        this.player.x,
-        minX,
-        maxX
-      );
   }
 
   private showUpgradeNotification(
