@@ -1,6 +1,7 @@
 import './style.css';
 import Phaser from 'phaser';
 
+import { Troop } from './entities/Troops';
 import { Player } from './entities/Player';
 import { Projectile } from './entities/Projectile';
 import { Enemy } from './entities/Enemy';
@@ -9,6 +10,10 @@ import { UpgradeCard } from './entities/UpgradeCard';
 
 class GameScene extends Phaser.Scene {
   private player!: Player;
+
+  private troops!: Phaser.Physics.Arcade.Group;
+
+  private troopSpacing = 50;
 
   private projectiles!: Phaser.Physics.Arcade.Group;
   private enemies!: Phaser.Physics.Arcade.Group;
@@ -67,6 +72,8 @@ class GameScene extends Phaser.Scene {
       damage: 1,
       projectileCount: 1,
     };
+
+    this.troops = this.physics.add.group();
 
     this.createTextures();
 
@@ -228,12 +235,14 @@ class GameScene extends Phaser.Scene {
 
     this.player.update();
 
+    this.updateTroopFormation();
+
     // Automatic shooting
     if (
       time - this.lastShotTime >=
       this.weaponStats.fireRate
     ) {
-      this.fireProjectile();
+      this.fireSquad();
       this.lastShotTime = time;
     }
 
@@ -467,16 +476,45 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  private fireProjectile() {
-    const projectile = new Projectile(
-      this,
+  private fireSquad() {
+    // Player fires
+    this.fireProjectileFrom(
       this.player.x,
       this.player.y - 30
     );
 
-    this.projectiles.add(projectile);
+    // Every troop fires
+    for (
+      const child of
+      this.troops.getChildren()
+    ) {
+      const troop =
+        child as Troop;
 
-    // Set velocity AFTER adding to physics group
+      if (troop.active) {
+        this.fireProjectileFrom(
+          troop.x,
+          troop.y - 30
+        );
+      }
+    }
+  }
+
+  private fireProjectileFrom(
+    x: number,
+    y: number
+  ) {
+    const projectile =
+      new Projectile(
+        this,
+        x,
+        y
+      );
+
+    this.projectiles.add(
+      projectile
+    );
+
     projectile.setVelocityY(-700);
   }
 
@@ -552,25 +590,33 @@ class GameScene extends Phaser.Scene {
       };
 
   private destroyUpgradeContainer(
-      container: UpgradeContainer
-    ) {
-      const x = container.x;
-      const y = container.y;
+    container: UpgradeContainer
+  ) {
+    const x = container.x;
+    const y = container.y;
 
-      container.destroy();
+    container.destroy();
 
-      const card = new UpgradeCard(
-        this,
-        x,
-        y,
-        'rapid-fire'
-      );
+    const upgradeId =
+      this.getRandomUpgradeId();
 
-      this.upgradeCards.add(card);
+    console.log(
+      'Creating upgrade card:',
+      upgradeId
+    );
 
-      card.setVelocityY(100);
-    }
-  
+    const card = new UpgradeCard(
+      this,
+      x,
+      y,
+      upgradeId
+    );
+
+    this.upgradeCards.add(card);
+
+    card.setVelocityY(100);
+  }
+
   private handlePlayerCardCollision:
     Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
       (_playerObject, cardObject) => {
@@ -583,6 +629,11 @@ class GameScene extends Phaser.Scene {
       };
 
   private applyUpgrade(upgradeId: string) {
+    console.log(
+      'Applying upgrade:',
+      upgradeId
+    );
+
     switch (upgradeId) {
       case 'rapid-fire':
         this.weaponStats.fireRate =
@@ -597,11 +648,64 @@ class GameScene extends Phaser.Scene {
         );
 
         break;
+
+      case 'add-troop':
+        this.addTroop();
+
+        this.showUpgradeNotification(
+          '+1 TROOP',
+          'Soldier joined your squad!'
+        );
+
+        break;
+
       default:
         console.warn(
           `Unknown upgrade: ${upgradeId}`
         );
     }
+  }
+  
+  private addTroop() {
+    const troop = new Troop(
+      this,
+      this.player.x,
+      this.player.y
+    );
+
+    this.troops.add(troop);
+
+    this.updateTroopFormation();
+  }
+
+  private updateTroopFormation() {
+    const troops =
+      this.troops.getChildren() as Troop[];
+
+    const troopCount = troops.length;
+
+    troops.forEach(
+      (troop, index) => {
+        const formationIndex =
+          index + 1;
+
+        const side =
+          formationIndex % 2 === 1
+            ? -1
+            : 1;
+
+        const distance =
+          Math.ceil(
+            formationIndex / 2
+          ) * this.troopSpacing;
+
+        troop.setPosition(
+          this.player.x +
+            side * distance,
+          this.player.y
+        );
+      }
+    );
   }
 
   private showUpgradeNotification(
@@ -651,6 +755,10 @@ class GameScene extends Phaser.Scene {
     );
   }
 
+  private getRandomUpgradeId(): string {
+    return 'add-troop';
+  }
+
   private checkWaveComplete() {
     if (
       !this.waveInProgress ||
@@ -694,7 +802,8 @@ class GameScene extends Phaser.Scene {
       this.textures.exists('bullet') &&
       this.textures.exists('enemy') &&
       this.textures.exists('upgrade-container') &&
-      this.textures.exists('upgrade-card')
+      this.textures.exists('upgrade-card') &&
+      this.textures.exists('troop')
     ) {
       return;
     }
@@ -771,7 +880,26 @@ class GameScene extends Phaser.Scene {
       'upgrade-card',
       40,
       55
-  );
+    );
+
+    // Troop
+    graphics.clear();
+
+    graphics.fillStyle(0x66bb6a);
+    graphics.fillTriangle(
+      18,
+      0,
+      0,
+      36,
+      36,
+      36
+    );
+
+    graphics.generateTexture(
+      'troop',
+      36,
+      36
+    );
 
     graphics.destroy();
   }

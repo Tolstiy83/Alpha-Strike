@@ -26,7 +26,7 @@ export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
     this.label = scene.add.text(
       x,
       y,
-      'RAPID\nFIRE',
+      this.getLabel(),
       {
         fontFamily: 'Arial',
         fontSize: '10px',
@@ -40,6 +40,19 @@ export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
       .setDepth(10);
   }
 
+  private getLabel(): string {
+    switch (this.upgradeId) {
+      case 'rapid-fire':
+        return 'RAPID\nFIRE';
+
+      case 'add-troop':
+        return '+1\nTROOP';
+
+      default:
+        return 'UPGRADE';
+    }
+  }
+
   update() {
     if (!this.active) {
       return;
@@ -51,9 +64,7 @@ export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
     );
   }
 
-  destroy(
-    fromScene?: boolean
-  ) {
+  destroy(fromScene?: boolean) {
     if (this.label) {
       this.label.destroy();
     }
