@@ -8,6 +8,10 @@ import { Projectile } from './entities/Projectile';
 import { Enemy } from './entities/Enemy';
 import { UpgradeContainer } from './entities/UpgradeContainer';
 import { UpgradeCard } from './entities/UpgradeCard';
+import {
+  UPGRADE_POOL,
+  type UpgradeId,
+} from './data/upgrades';
 
 class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -629,7 +633,7 @@ class GameScene extends Phaser.Scene {
         card.destroy();
       };
 
-  private applyUpgrade(upgradeId: string) {
+  private applyUpgrade(upgradeId: UpgradeId) {
     console.log(
       'Applying upgrade:',
       upgradeId
@@ -714,14 +718,9 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  private getRandomUpgradeId(): string {
-    const upgrades = [
-      'rapid-fire',
-      'add-troop',
-    ];
-
+  private getRandomUpgradeId(): UpgradeId {
     return Phaser.Utils.Array.GetRandom(
-      upgrades
+      UPGRADE_POOL
     );
   }
 

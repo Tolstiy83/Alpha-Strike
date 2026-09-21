@@ -1,7 +1,11 @@
 import Phaser from 'phaser';
+import {
+  UPGRADES,
+  type UpgradeId,
+} from '../data/upgrades';
 
 export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
-  public readonly upgradeId: string;
+  public readonly upgradeId: UpgradeId;
 
   private label: Phaser.GameObjects.Text;
 
@@ -9,7 +13,7 @@ export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
     scene: Phaser.Scene,
     x: number,
     y: number,
-    upgradeId: string
+    upgradeId: UpgradeId
   ) {
     super(
       scene,
@@ -26,7 +30,7 @@ export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
     this.label = scene.add.text(
       x,
       y,
-      this.getLabel(),
+      UPGRADES[this.upgradeId].cardLabel,
       {
         fontFamily: 'Arial',
         fontSize: '10px',
@@ -38,19 +42,6 @@ export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
     this.label
       .setOrigin(0.5)
       .setDepth(10);
-  }
-
-  private getLabel(): string {
-    switch (this.upgradeId) {
-      case 'rapid-fire':
-        return 'RAPID\nFIRE';
-
-      case 'add-troop':
-        return '+1\nTROOP';
-
-      default:
-        return 'UPGRADE';
-    }
   }
 
   update() {
