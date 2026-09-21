@@ -50,8 +50,6 @@ class GameScene extends Phaser.Scene {
   private upgradeContainers!: Phaser.Physics.Arcade.Group;
   private upgradeCards!: Phaser.Physics.Arcade.Group;
 
-  private upgradeSpawnedThisWave = false;
-
   private weaponStatsText!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -435,8 +433,6 @@ class GameScene extends Phaser.Scene {
 
     this.wave++;
 
-    this.upgradeSpawnedThisWave = false;
-
     this.waveText.setText(
       `Wave: ${this.wave}`
     );
@@ -501,19 +497,6 @@ class GameScene extends Phaser.Scene {
 
         loop: true,
       });
-
-    if (!this.upgradeSpawnedThisWave) {
-      this.time.delayedCall(
-        2000,
-        () => {
-          if (!this.isGameOver) {
-            this.spawnUpgradeChoice();
-          }
-        }
-      );
-
-      this.upgradeSpawnedThisWave = true;
-    }
   }
 
   private fireSquad() {
@@ -674,7 +657,7 @@ class GameScene extends Phaser.Scene {
 
     this.upgradeCards.add(card);
 
-    card.setVelocityY(100);
+    card.setVelocityY(75);
 
     this.removeOtherUpgradeChoices();
   }
@@ -715,15 +698,35 @@ class GameScene extends Phaser.Scene {
   }
 
   private handlePlayerCardCollision:
-    Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-      (_playerObject, cardObject) => {
-        const card =
-          cardObject as UpgradeCard;
+  Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+    (_playerObject, cardObject) => {
+      const card =
+        cardObject as UpgradeCard;
 
-        this.applyUpgrade(card.upgradeId);
+      // Prevent the same card from being collected twice
+      if (!card.active) {
+        return;
+      }
 
-        card.destroy();
-      };
+      // Apply the upgrade
+      this.applyUpgrade(
+        card.upgradeId
+      );
+
+      // Remove the card
+      card.destroy();
+
+      // Give the player a short moment
+      // before starting the next wave
+      this.time.delayedCall(
+        1000,
+        () => {
+          if (!this.isGameOver) {
+            this.startNextWave();
+          }
+        }
+      );
+    };
 
   private applyUpgrade(upgradeId: UpgradeId) {
     console.log(
@@ -916,12 +919,40 @@ class GameScene extends Phaser.Scene {
     announcement.setOrigin(0.5);
 
     this.time.delayedCall(
-      1500,
+      1200,
       () => {
         announcement.destroy();
 
         if (!this.isGameOver) {
-          this.startNextWave();
+          this.startUpgradePhase();
+        }
+      }
+    );
+  }
+
+  private startUpgradePhase() {
+    const text = this.add.text(
+      this.scale.width / 2,
+      220,
+      'CHOOSE YOUR UPGRADE',
+      {
+        fontFamily: 'Arial',
+        fontSize: '24px',
+        color: '#ffeb3b',
+      }
+    );
+
+    text
+      .setOrigin(0.5)
+      .setDepth(20);
+
+    this.spawnUpgradeChoice();
+
+    this.time.delayedCall(
+      1500,
+      () => {
+        if (text.active) {
+          text.destroy();
         }
       }
     );
