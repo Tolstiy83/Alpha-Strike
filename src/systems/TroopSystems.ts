@@ -9,8 +9,8 @@ export class TroopSystem {
 
   private troops: Phaser.Physics.Arcade.Group;
 
-  private troopSpacingX = 45;
-  private troopSpacingY = 45;
+  private troopSpacingX = 30;
+  private troopSpacingY = 36;
 
   private troopsPerRow = 5;
 

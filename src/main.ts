@@ -85,8 +85,8 @@ class GameScene extends Phaser.Scene {
 
     this.player = new Player(
       this,
-      400,
-      500
+      this.scale.width / 2,
+      680
     );
 
     this.troopSystem =
@@ -149,12 +149,13 @@ class GameScene extends Phaser.Scene {
     // -----------------------
     this.weaponStatsText = this.add.text(
       20,
-      140,
+      145,
       '',
       {
         fontFamily: 'Arial',
-        fontSize: '16px',
+        fontSize: '15px',
         color: '#aaaaaa',
+        lineSpacing: 4,
       }
     );
 
@@ -228,14 +229,30 @@ class GameScene extends Phaser.Scene {
       }
     );
 
-    this.add.text(
-      20,
-      135,
-      'Move: ← → or A / D',
+    const controlsText = this.add.text(
+      this.scale.width / 2,
+      this.scale.height - 25,
+      'Move: ← → or A/D',
       {
         fontFamily: 'Arial',
-        fontSize: '16px',
-        color: '#aaaaaa',
+        fontSize: '14px',
+        color: '#777777',
+      }
+    );
+
+    controlsText.setOrigin(0.5);
+
+    this.time.delayedCall(
+      5000,
+      () => {
+        this.tweens.add({
+          targets: controlsText,
+          alpha: 0,
+          duration: 1000,
+          onComplete: () => {
+            controlsText.destroy();
+          },
+        });
       }
     );
 
@@ -541,10 +558,20 @@ class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy() {
-    const x = Phaser.Math.Between(
-      40,
-      this.scale.width - 40
-    );
+    const spawnWidth =
+      this.scale.width * 0.7;
+
+    const spawnLeft =
+      (this.scale.width - spawnWidth) / 2;
+
+    const spawnRight =
+      spawnLeft + spawnWidth;
+
+    const x =
+      Phaser.Math.Between(
+        spawnLeft,
+        spawnRight
+      );
 
     const enemy = new Enemy(
       this,
@@ -555,9 +582,11 @@ class GameScene extends Phaser.Scene {
     this.enemies.add(enemy);
 
     const enemySpeed =
-      80 + this.wave * 10;
+      55 + this.wave * 5;
 
-    enemy.setVelocityY(enemySpeed);
+    enemy.setVelocityY(
+      enemySpeed
+    );
   }
 
   private handleBulletEnemyCollision:
@@ -780,10 +809,11 @@ class GameScene extends Phaser.Scene {
   }
 
   private updateWeaponStatsText() {
-    this.weaponStatsText.setText(
-      `Damage: ${this.weaponStats.damage}  ` +
-      `Fire Rate: ${Math.round(this.weaponStats.fireRate)}ms`
-    );
+    this.weaponStatsText.setText([
+      `Damage: ${this.weaponStats.damage}`,
+      `Fire Rate: ${Math.round(this.weaponStats.fireRate)}ms`,
+      `Troops: ${this.troopSystem.getTroopCount()}`,
+    ]);
   }
 
   private spawnUpgradeChoice() {
@@ -791,8 +821,8 @@ class GameScene extends Phaser.Scene {
       this.getUpgradeChoices(2);
 
     const positions = [
-      this.scale.width * 0.35,
-      this.scale.width * 0.65,
+      this.scale.width * 0.22,
+      this.scale.width * 0.78,
     ];
 
     choices.forEach(
@@ -801,7 +831,7 @@ class GameScene extends Phaser.Scene {
           new UpgradeContainer(
             this,
             positions[index],
-            180,
+            300,
             upgradeId
           );
 
@@ -1010,7 +1040,7 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
 
   width: 800,
-  height: 700,
+  height: 900,
 
   backgroundColor: '#10131c',
 
