@@ -1,19 +1,30 @@
 import Phaser from 'phaser';
+import type { UpgradeId } from '../data/upgrades';
 
 export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
   private health = 5;
   private isBroken = false;
 
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number
-  ) {
-    super(scene, x, y, 'upgrade-container');
+  public readonly upgradeId: UpgradeId;
 
-    scene.add.existing(this);
-    scene.physics.add.existing(this);
-  }
+    constructor(
+        scene: Phaser.Scene,
+        x: number,
+        y: number,
+        upgradeId: UpgradeId
+        ) {
+        super(
+            scene,
+            x,
+            y,
+            'upgrade-container'
+        );
+
+        this.upgradeId = upgradeId;
+
+        scene.add.existing(this);
+        scene.physics.add.existing(this);
+    }
 
   takeDamage(amount: number): boolean {
     if (this.isBroken) {

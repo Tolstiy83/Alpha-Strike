@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
-  private health = 1;
+  private health = 2;
 
   private isDead = false;
 

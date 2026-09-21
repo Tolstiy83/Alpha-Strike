@@ -10,6 +10,7 @@ import { UpgradeContainer } from './entities/UpgradeContainer';
 import { UpgradeCard } from './entities/UpgradeCard';
 import {
   UPGRADE_POOL,
+  UPGRADES,
   type UpgradeId,
 } from './data/upgrades';
 
@@ -25,7 +26,6 @@ class GameScene extends Phaser.Scene {
   private weaponStats = {
     fireRate: 250,
     damage: 1,
-    projectileCount: 1,
   };
   private score = 0;
   private scoreText!: Phaser.GameObjects.Text;
@@ -52,6 +52,8 @@ class GameScene extends Phaser.Scene {
 
   private upgradeSpawnedThisWave = false;
 
+  private weaponStatsText!: Phaser.GameObjects.Text;
+
   constructor() {
     super('GameScene');
   }
@@ -73,7 +75,6 @@ class GameScene extends Phaser.Scene {
     this.weaponStats = {
       fireRate: 250,
       damage: 1,
-      projectileCount: 1,
     };
 
     this.createTextures();
@@ -142,6 +143,22 @@ class GameScene extends Phaser.Scene {
       undefined,
       this
     );
+
+    // -----------------------
+    // HUD
+    // -----------------------
+    this.weaponStatsText = this.add.text(
+      20,
+      140,
+      '',
+      {
+        fontFamily: 'Arial',
+        fontSize: '16px',
+        color: '#aaaaaa',
+      }
+    );
+
+    this.updateWeaponStatsText();
 
     // -----------------------
     // UI
@@ -473,7 +490,7 @@ class GameScene extends Phaser.Scene {
         2000,
         () => {
           if (!this.isGameOver) {
-            this.spawnUpgradeContainer();
+            this.spawnUpgradeChoice();
           }
         }
       );
@@ -543,31 +560,41 @@ class GameScene extends Phaser.Scene {
     enemy.setVelocityY(enemySpeed);
   }
 
-  private handleBulletEnemyCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-    (bulletObject, enemyObject) => {
-      const bullet =
-        bulletObject as Projectile;
+  private handleBulletEnemyCollision:
+    Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+      (bulletObject, enemyObject) => {
+        const bullet =
+          bulletObject as Projectile;
 
-      const enemy =
-        enemyObject as Enemy;
+        const enemy =
+          enemyObject as Enemy;
 
-      bullet.destroy();
+        if (
+          !bullet.active ||
+          !enemy.active
+        ) {
+          return;
+        }
 
-      const enemyKilled =
-        enemy.takeDamage(1);
+        bullet.destroy();
 
-      if (enemyKilled) {
-        this.score += 100;
+        const enemyKilled =
+          enemy.takeDamage(
+            this.weaponStats.damage
+          );
 
-        this.scoreText.setText(
-          `Score: ${this.score}`
-        );
+        if (enemyKilled) {
+          this.score += 100;
 
-        this.enemiesAlive--;
+          this.scoreText.setText(
+            `Score: ${this.score}`
+          );
 
-        this.checkWaveComplete();
-      }
-    };
+          this.enemiesAlive--;
+
+          this.checkWaveComplete();
+        }
+      };
 
   private handleBulletContainerCollision:
     Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
@@ -600,15 +627,14 @@ class GameScene extends Phaser.Scene {
     const x = container.x;
     const y = container.y;
 
-    container.destroy();
-
     const upgradeId =
-      this.getRandomUpgradeId();
+      container.upgradeId;
 
-    console.log(
-      'Creating upgrade card:',
-      upgradeId
+    this.removeContainerLabel(
+      container
     );
+
+    container.destroy();
 
     const card = new UpgradeCard(
       this,
@@ -620,6 +646,43 @@ class GameScene extends Phaser.Scene {
     this.upgradeCards.add(card);
 
     card.setVelocityY(100);
+
+    this.removeOtherUpgradeChoices();
+  }
+
+  private removeContainerLabel(
+    container: UpgradeContainer
+  ) {
+    const label =
+      container.getData(
+        'choiceLabel'
+      ) as
+        | Phaser.GameObjects.Text
+        | undefined;
+
+    if (label) {
+      label.destroy();
+    }
+  }
+
+  private removeOtherUpgradeChoices() {
+    for (
+      const child of
+      this.upgradeContainers.getChildren()
+    ) {
+      const container =
+        child as UpgradeContainer;
+
+      if (!container.active) {
+        continue;
+      }
+
+      this.removeContainerLabel(
+        container
+      );
+
+      container.destroy();
+    }
   }
 
   private handlePlayerCardCollision:
@@ -647,6 +710,8 @@ class GameScene extends Phaser.Scene {
             this.weaponStats.fireRate * 0.8
           );
 
+        this.updateWeaponStatsText();
+
         this.showUpgradeNotification(
           'RAPID FIRE',
           'Fire Rate +20%'
@@ -654,8 +719,22 @@ class GameScene extends Phaser.Scene {
 
         break;
 
+      case 'heavy-rounds':
+        this.weaponStats.damage += 1;
+
+        this.updateWeaponStatsText();
+
+        this.showUpgradeNotification(
+          'HEAVY ROUNDS',
+          `Bullet Damage: ${this.weaponStats.damage}`
+        );
+
+        break;
+
       case 'add-troop':
         this.troopSystem.addTroop();
+
+        this.updateWeaponStatsText();
 
         this.showUpgradeNotification(
           '+1 TROOP',
@@ -663,11 +742,6 @@ class GameScene extends Phaser.Scene {
         );
 
         break;
-
-      default:
-        console.warn(
-          `Unknown upgrade: ${upgradeId}`
-        );
     }
   }
 
@@ -705,22 +779,84 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  private spawnUpgradeContainer() {
-    const container =
-      new UpgradeContainer(
-        this,
-        this.scale.width / 2,
-        180
-      );
-
-    this.upgradeContainers.add(
-      container
+  private updateWeaponStatsText() {
+    this.weaponStatsText.setText(
+      `Damage: ${this.weaponStats.damage}  ` +
+      `Fire Rate: ${Math.round(this.weaponStats.fireRate)}ms`
     );
   }
 
-  private getRandomUpgradeId(): UpgradeId {
-    return Phaser.Utils.Array.GetRandom(
-      UPGRADE_POOL
+  private spawnUpgradeChoice() {
+    const choices =
+      this.getUpgradeChoices(2);
+
+    const positions = [
+      this.scale.width * 0.35,
+      this.scale.width * 0.65,
+    ];
+
+    choices.forEach(
+      (upgradeId, index) => {
+        const container =
+          new UpgradeContainer(
+            this,
+            positions[index],
+            180,
+            upgradeId
+          );
+
+        this.upgradeContainers.add(
+          container
+        );
+
+        this.createUpgradeChoiceLabel(
+          container
+        );
+      }
+    );
+  }
+
+  private getUpgradeChoices(
+    count: number
+  ): UpgradeId[] {
+    const available =
+      [...UPGRADE_POOL];
+
+    Phaser.Utils.Array.Shuffle(
+      available
+    );
+
+    return available.slice(
+      0,
+      count
+    );
+  }
+
+  private createUpgradeChoiceLabel(
+    container: UpgradeContainer
+  ) {
+    const upgrade =
+      UPGRADES[container.upgradeId];
+
+    const label = this.add.text(
+      container.x,
+      container.y - 45,
+      upgrade.name.toUpperCase(),
+      {
+        fontFamily: 'Arial',
+        fontSize: '14px',
+        color: '#ffffff',
+        align: 'center',
+      }
+    );
+
+    label
+      .setOrigin(0.5)
+      .setDepth(10);
+
+    container.setData(
+      'choiceLabel',
+      label
     );
   }
 
