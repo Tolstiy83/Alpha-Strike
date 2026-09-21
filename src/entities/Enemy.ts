@@ -1,20 +1,57 @@
 import Phaser from 'phaser';
+import {
+  ENEMIES,
+  type EnemyType,
+} from '../data/enemies';
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
-  private health = 2;
+    private health: number;
 
-  private isDead = false;
+    public readonly enemyType: EnemyType;
+    private isDead = false;
 
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number
-  ) {
-    super(scene, x, y, 'enemy');
+    private enemyColor: number;
+  
+    constructor(
+        scene: Phaser.Scene,
+        x: number,
+        y: number,
+        enemyType: EnemyType
+        ) {
+        super(
+            scene,
+            x,
+            y,
+            'enemy'
+        );
 
-    scene.add.existing(this);
-    scene.physics.add.existing(this);
-  }
+        this.enemyType = enemyType;
+
+        const definition =
+            ENEMIES[enemyType];
+
+        this.health =
+            definition.health;
+
+        scene.add.existing(this);
+        scene.physics.add.existing(this);
+
+        this.setDisplaySize(
+            definition.size,
+            definition.size
+        );
+
+        this.setTint(
+            definition.color
+        );
+
+        this.enemyColor =
+            definition.color;
+
+        this.setTint(
+            this.enemyColor
+        );
+    }
 
 takeDamage(amount: number): boolean {
     if (this.isDead) {
@@ -56,9 +93,11 @@ takeDamage(amount: number): boolean {
     this.scene.time.delayedCall(
         50,
         () => {
-        if (this.active && !this.isDead) {
-            this.clearTint();
-        }
+            if (this.active && !this.isDead) {
+                this.setTint(
+                    this.enemyColor
+                );
+            }
         }
     );
 

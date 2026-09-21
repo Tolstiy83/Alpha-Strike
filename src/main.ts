@@ -13,6 +13,10 @@ import {
   UPGRADES,
   type UpgradeId,
 } from './data/upgrades';
+import {
+  ENEMIES,
+  type EnemyType,
+} from './data/enemies';
 
 class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -335,7 +339,12 @@ class GameScene extends Phaser.Scene {
 
     this.enemiesAlive--;
 
-    this.damagePlayer(20);
+    const definition =
+      ENEMIES[enemy.enemyType];
+
+    this.damagePlayer(
+      definition.escapeDamage
+    );
 
     if (!this.isGameOver) {
       this.checkWaveComplete();
@@ -483,7 +492,12 @@ class GameScene extends Phaser.Scene {
             return;
           }
 
-          this.spawnEnemy();
+          const enemyType =
+            this.getEnemyTypeForWave();
+
+          this.spawnEnemy(
+            enemyType
+          );
 
           enemiesSpawned++;
 
@@ -497,6 +511,45 @@ class GameScene extends Phaser.Scene {
 
         loop: true,
       });
+  }
+
+  private getEnemyTypeForWave():
+    EnemyType {
+
+    // Wave 1:
+    // Grunts only
+    if (this.wave === 1) {
+      return 'grunt';
+    }
+
+    // Waves 2-3:
+    // Introduce runners
+    if (this.wave <= 3) {
+      return Phaser.Math.Between(
+        1,
+        100
+      ) <= 25
+        ? 'runner'
+        : 'grunt';
+    }
+
+    // Waves 4+:
+    // All three types
+    const roll =
+      Phaser.Math.Between(
+        1,
+        100
+      );
+
+    if (roll <= 20) {
+      return 'runner';
+    }
+
+    if (roll <= 35) {
+      return 'tank';
+    }
+
+    return 'grunt';
   }
 
   private fireSquad() {
@@ -540,12 +593,15 @@ class GameScene extends Phaser.Scene {
     projectile.setVelocityY(-700);
   }
 
-  private spawnEnemy() {
+  private spawnEnemy(
+    enemyType: EnemyType
+  ) {
     const spawnWidth =
       this.scale.width * 0.7;
 
     const spawnLeft =
-      (this.scale.width - spawnWidth) / 2;
+      (this.scale.width -
+        spawnWidth) / 2;
 
     const spawnRight =
       spawnLeft + spawnWidth;
@@ -559,16 +615,21 @@ class GameScene extends Phaser.Scene {
     const enemy = new Enemy(
       this,
       x,
-      -20
+      -30,
+      enemyType
     );
 
     this.enemies.add(enemy);
 
-    const enemySpeed =
-      55 + this.wave * 5;
+    const definition =
+      ENEMIES[enemyType];
+
+    const waveSpeedBonus =
+      this.wave * 2;
 
     enemy.setVelocityY(
-      enemySpeed
+      definition.speed +
+      waveSpeedBonus
     );
   }
 
@@ -596,7 +657,11 @@ class GameScene extends Phaser.Scene {
           );
 
         if (enemyKilled) {
-          this.score += 100;
+          const definition =
+            ENEMIES[enemy.enemyType];
+
+          this.score +=
+            definition.scoreValue;
 
           this.scoreText.setText(
             `Score: ${this.score}`
