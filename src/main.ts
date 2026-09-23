@@ -10,7 +10,6 @@ import { Enemy } from './entities/Enemy';
 import { UpgradeContainer } from './entities/UpgradeContainer';
 import { UpgradeCard } from './entities/UpgradeCard';
 import {
-  UPGRADE_POOL,
   UPGRADES,
   type UpgradeId,
 } from './data/upgrades';
@@ -25,7 +24,13 @@ class GameScene extends Phaser.Scene {
   private bossBar?: Phaser.GameObjects.Rectangle;
   private bossBarBackground?: Phaser.GameObjects.Rectangle;
   private bossSummonElapsed = 0;
-  private rewardPending = false;
+  private stageElapsed = 0;
+  private encounterIndex = 0;
+  private stageFinished = false;
+  private bossStarted = false;
+  private roadMarks: Phaser.GameObjects.Rectangle[] = [];
+  private progressFill!: Phaser.GameObjects.Rectangle;
+  private readonly encounters = [2000, 9000, 18000, 27000, 37000, 46000];
   private player!: Player;
 
   private troopSystem!: TroopSystem;
@@ -42,9 +47,7 @@ class GameScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
 
   private wave = 0;
-  private enemiesToSpawn = 0;
   private enemiesAlive = 0;
-  private waveInProgress = false;
   private waveText!: Phaser.GameObjects.Text;
 
   private playerHealth = 100;
@@ -73,13 +76,15 @@ class GameScene extends Phaser.Scene {
     this.bossBar = undefined;
     this.bossBarBackground = undefined;
     this.bossSummonElapsed = 0;
-    this.rewardPending = false;
+    this.stageElapsed = 0;
+    this.encounterIndex = 0;
+    this.stageFinished = false;
+    this.bossStarted = false;
+    this.roadMarks = [];
     this.score = 0;
 
     this.wave = 0;
-    this.enemiesToSpawn = 0;
     this.enemiesAlive = 0;
-    this.waveInProgress = false;
 
     this.playerHealth = this.maxPlayerHealth;
 
@@ -93,6 +98,7 @@ class GameScene extends Phaser.Scene {
     };
 
     this.createTextures();
+    this.createRoad();
 
     // -----------------------
     // Player
@@ -112,6 +118,9 @@ class GameScene extends Phaser.Scene {
     // -----------------------
     // Physics groups
     // -----------------------
+
+    this.troopSystem.addTroop();
+    this.troopSystem.addTroop();
 
     this.projectiles = this.physics.add.group();
 
@@ -234,9 +243,9 @@ class GameScene extends Phaser.Scene {
     this.healthBarFill.setOrigin(0, 0.5);
 
     this.waveText = this.add.text(
-      650,
+      470,
       20,
-      'Wave: 0',
+      'ROAD 1 • 0%',
       {
         fontFamily: 'Arial',
         fontSize: '20px',
@@ -271,12 +280,11 @@ class GameScene extends Phaser.Scene {
       }
     );
 
-    this.startNextWave();
 
     this.input.keyboard!.on(
       'keydown-SPACE',
       () => {
-        if (this.isGameOver) {
+        if (this.isGameOver || this.stageFinished) {
           this.scene.restart();
         }
       }
@@ -284,10 +292,11 @@ class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
-    if (this.isGameOver) {
+    if (this.isGameOver || this.stageFinished) {
       return;
     }
 
+    this.updateRoad(delta);
     this.updateBoss(delta);
     this.player.update();
 
@@ -305,6 +314,7 @@ class GameScene extends Phaser.Scene {
     // Check enemies that reached the bottom
     for (const child of this.enemies.getChildren()) {
       const enemy = child as Enemy;
+      if (this.isGameOver) break;
       enemy.updateMovement(delta);
 
       if (
@@ -344,7 +354,7 @@ class GameScene extends Phaser.Scene {
           this.scale.height + 50
         ) {
           card.destroy();
-          this.finishRewardPhase();
+
         }
       }
     }
@@ -362,9 +372,6 @@ class GameScene extends Phaser.Scene {
       definition.escapeDamage
     );
 
-    if (!this.isGameOver) {
-      this.checkWaveComplete();
-    }
   }
 
   private damagePlayer(amount: number) {
@@ -400,7 +407,6 @@ class GameScene extends Phaser.Scene {
 
   private gameOver() {
     this.isGameOver = true;
-    this.waveInProgress = false;
 
     this.boss?.setVelocity(0, 0);
 
@@ -453,125 +459,60 @@ class GameScene extends Phaser.Scene {
     ).setOrigin(0.5);
   }
 
-  private startNextWave() {
-    if (this.isGameOver) {
-      return;
+  private createRoad() {
+    this.add.rectangle(400, 450, 800, 900, 0x182822).setDepth(-20);
+    this.add.rectangle(400, 450, 700, 900, 0x292e38).setDepth(-19);
+    for (const x of [65, 735]) {
+      this.add.rectangle(x, 450, 5, 900, 0xc9b887).setDepth(-18);
     }
-
-    this.wave++;
-
-    this.waveText.setText(
-      `Wave: ${this.wave}`
-    );
-
-    const announcement =
-      this.add.text(
-        this.scale.width / 2,
-        this.scale.height / 2,
-        this.wave === 5 ? 'WAVE 5 — BOSS' : `WAVE ${this.wave}`,
-        {
-          fontFamily: 'Arial',
-          fontSize: '48px',
-          color: '#ffffff',
-        }
-      );
-
-    announcement.setOrigin(0.5);
-
-    this.time.delayedCall(
-      1500,
-      () => {
-        announcement.destroy();
-
-        if (!this.isGameOver) {
-          this.beginWave();
-        }
+    for (let y = -120; y < 1020; y += 120) {
+      for (const x of [285, 515]) {
+        this.roadMarks.push(this.add.rectangle(x, y, 5, 55, 0x66707b).setDepth(-17));
       }
-    );
+    }
+    this.add.rectangle(470, 50, 290, 6, 0x414a56).setOrigin(0).setDepth(25);
+    this.progressFill = this.add.rectangle(470, 50, 0, 6, 0x6ee7b7).setOrigin(0).setDepth(26);
   }
 
-  private beginWave() {
-    this.waveInProgress = true;
-    if (this.wave === 5) {
+  private updateRoad(delta: number) {
+    for (const mark of this.roadMarks) {
+      mark.y += delta * 0.1;
+      if (mark.y > 1020) mark.y -= 1200;
+    }
+    for (const child of [...this.upgradeContainers.getChildren()]) {
+      const container = child as UpgradeContainer;
+      const label = container.getData('choiceLabel') as Phaser.GameObjects.Text;
+      if (label?.active) label.setPosition(container.x, container.y - 45);
+      if (container.y > this.scale.height + 50) {
+        this.removeContainerLabel(container);
+        container.destroy();
+      }
+    }
+    if (this.bossStarted) return;
+    const previous = this.stageElapsed;
+    this.stageElapsed = Math.min(55000, this.stageElapsed + delta);
+    const progress = this.stageElapsed / 55000;
+    this.progressFill.width = 290 * progress;
+    this.waveText.setText('ROAD 1 • ' + Math.floor(progress * 100) + '%');
+    this.wave = 1 + Math.floor(progress * 4);
+    if (previous < 13000 && this.stageElapsed >= 13000) this.spawnUpgradeChoice();
+    if (previous < 32000 && this.stageElapsed >= 32000) this.spawnUpgradeChoice();
+    while (this.encounterIndex < this.encounters.length &&
+      this.stageElapsed >= this.encounters[this.encounterIndex]) {
+      const index = this.encounterIndex++;
+      for (let i = 0; i < 4 + index; i++) {
+        this.enemiesAlive++;
+        this.spawnEnemy(index >= 3 && i === 0 ? 'tank' :
+          index >= 1 && i % 3 === 0 ? 'runner' : 'grunt');
+      }
+    }
+    if (this.stageElapsed >= 55000 && this.enemiesAlive === 0) {
+      this.bossStarted = true;
+      this.removeOtherUpgradeChoices();
+      this.upgradeCards.clear(true, true);
+      this.waveText.setText('ROAD 1 • BOSS');
       this.beginBossWave();
-      return;
     }
-
-    this.enemiesToSpawn =
-      4 + this.wave * 2;
-
-    this.enemiesAlive =
-      this.enemiesToSpawn;
-
-    let enemiesSpawned = 0;
-
-    const spawnTimer =
-      this.time.addEvent({
-        delay: 500,
-
-        callback: () => {
-          if (this.isGameOver) {
-            return;
-          }
-
-          const enemyType =
-            this.getEnemyTypeForWave();
-
-          this.spawnEnemy(
-            enemyType
-          );
-
-          enemiesSpawned++;
-
-          if (
-            enemiesSpawned >=
-            this.enemiesToSpawn
-          ) {
-            spawnTimer.destroy();
-          }
-        },
-
-        loop: true,
-      });
-  }
-
-  private getEnemyTypeForWave():
-    EnemyType {
-
-    // Wave 1:
-    // Grunts only
-    if (this.wave === 1) {
-      return 'grunt';
-    }
-
-    // Waves 2-3:
-    // Introduce runners
-    if (this.wave <= 3) {
-      return Phaser.Math.Between(
-        1,
-        100
-      ) <= 25
-        ? 'runner'
-        : 'grunt';
-    }
-
-    // Waves 4+:
-    // All three types
-    const roll =
-      Phaser.Math.Between(
-        1,
-        100
-      );
-
-    if (roll <= 20) {
-      return 'runner';
-    }
-
-    if (roll <= 35) {
-      return 'tank';
-    }
-
-    return 'grunt';
   }
 
   private fireSquad() {
@@ -691,7 +632,6 @@ class GameScene extends Phaser.Scene {
 
           this.enemiesAlive--;
 
-          this.checkWaveComplete();
         }
       };
 
@@ -803,16 +743,8 @@ class GameScene extends Phaser.Scene {
       // Remove the card
       card.destroy();
 
-      this.finishRewardPhase();
-    };
 
-  private finishRewardPhase() {
-    if (!this.rewardPending || this.isGameOver) return;
-    this.rewardPending = false;
-    this.time.delayedCall(1000, () => {
-      if (!this.isGameOver) this.startNextWave();
-    });
-  }
+    };
 
   private beginBossWave() {
     this.enemiesAlive = 0;
@@ -846,7 +778,7 @@ class GameScene extends Phaser.Scene {
         this.projectiles.clear(true, true);
         this.score += 2000;
         this.scoreText.setText('Score: ' + this.score);
-        this.checkWaveComplete();
+        this.completeStage();
       } else if (!wasEnraged && boss.enraged) {
         this.bossLabel!.setText('IRON COMMANDER — PHASE 2');
         this.bossBar!.setFillStyle(0xff5252);
@@ -907,12 +839,13 @@ class GameScene extends Phaser.Scene {
 
       case 'add-troop':
         this.troopSystem.addTroop();
+        this.troopSystem.addTroop();
 
         this.updateWeaponStatsText();
 
         this.showUpgradeNotification(
-          '+1 TROOP',
-          'Soldier joined your squad!'
+          '+2 TROOPS',
+          'Reinforcements joined your squad!'
         );
 
         break;
@@ -962,8 +895,8 @@ class GameScene extends Phaser.Scene {
   }
 
   private spawnUpgradeChoice() {
-    const choices =
-      this.getUpgradeChoices(2);
+    const choices: UpgradeId[] = ['add-troop', 'heavy-rounds'];
+    this.showUpgradeNotification('CHOOSE YOUR ROUTE', 'Shoot a crate, then collect its upgrade');
 
     const positions = [
       this.scale.width * 0.22,
@@ -976,7 +909,7 @@ class GameScene extends Phaser.Scene {
           new UpgradeContainer(
             this,
             positions[index],
-            300,
+            -40,
             upgradeId
           );
 
@@ -984,26 +917,11 @@ class GameScene extends Phaser.Scene {
           container
         );
 
+        container.setVelocityY(90);
         this.createUpgradeChoiceLabel(
           container
         );
       }
-    );
-  }
-
-  private getUpgradeChoices(
-    count: number
-  ): UpgradeId[] {
-    const available =
-      [...UPGRADE_POOL];
-
-    Phaser.Utils.Array.Shuffle(
-      available
-    );
-
-    return available.slice(
-      0,
-      count
     );
   }
 
@@ -1035,71 +953,20 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  private checkWaveComplete() {
-    if (
-      !this.waveInProgress ||
-      this.enemiesAlive > 0 ||
-      this.boss?.active ||
-      this.isGameOver
-    ) {
-      return;
-    }
-
-    this.waveInProgress = false;
-
-    const announcement =
-      this.add.text(
-        this.scale.width / 2,
-        this.scale.height / 2,
-        `WAVE ${this.wave} COMPLETE`,
-        {
-          fontFamily: 'Arial',
-          fontSize: '36px',
-          color: '#ffffff',
-        }
-      );
-
-    announcement.setOrigin(0.5);
-
-    this.time.delayedCall(
-      1200,
-      () => {
-        announcement.destroy();
-
-        if (!this.isGameOver) {
-          this.startUpgradePhase();
-        }
-      }
-    );
-  }
-
-  private startUpgradePhase() {
-    this.rewardPending = true;
-    const text = this.add.text(
-      this.scale.width / 2,
-      220,
-      'CHOOSE YOUR UPGRADE',
-      {
-        fontFamily: 'Arial',
-        fontSize: '24px',
-        color: '#ffeb3b',
-      }
-    );
-
-    text
-      .setOrigin(0.5)
-      .setDepth(20);
-
-    this.spawnUpgradeChoice();
-
-    this.time.delayedCall(
-      1500,
-      () => {
-        if (text.active) {
-          text.destroy();
-        }
-      }
-    );
+  private completeStage() {
+    this.stageFinished = true;
+    this.time.removeAllEvents();
+    this.player.setVelocity(0, 0);
+    this.removeOtherUpgradeChoices();
+    this.upgradeCards.clear(true, true);
+    this.waveText.setText('ROAD 1 • COMPLETE');
+    this.add.rectangle(400, 450, 620, 240, 0x101820, 0.95).setDepth(100);
+    this.add.text(400, 395, 'STAGE CLEAR', {
+      fontFamily: 'Arial', fontSize: '44px', color: '#6ee7b7',
+    }).setOrigin(0.5).setDepth(101);
+    this.add.text(400, 465, 'Score: ' + this.score + '\nPress SPACE to play again', {
+      fontFamily: 'Arial', fontSize: '23px', color: '#ffffff', align: 'center',
+    }).setOrigin(0.5).setDepth(101);
   }
 
   private createTextures() {
@@ -1236,7 +1103,7 @@ const config: Phaser.Types.Core.GameConfig = {
     default: 'arcade',
 
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
 
