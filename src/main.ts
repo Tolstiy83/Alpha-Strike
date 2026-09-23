@@ -31,6 +31,8 @@ class GameScene extends Phaser.Scene {
   private roadMarks: Phaser.GameObjects.Rectangle[] = [];
   private progressFill!: Phaser.GameObjects.Rectangle;
   private readonly encounters = [2000, 9000, 18000, 27000, 37000, 46000];
+  private squadProtectedUntil = 0;
+  private squadText!: Phaser.GameObjects.Text;
   private player!: Player;
 
   private troopSystem!: TroopSystem;
@@ -81,6 +83,7 @@ class GameScene extends Phaser.Scene {
     this.stageFinished = false;
     this.bossStarted = false;
     this.roadMarks = [];
+    this.squadProtectedUntil = 0;
     this.score = 0;
 
     this.wave = 0;
@@ -183,6 +186,10 @@ class GameScene extends Phaser.Scene {
       }
     );
 
+    this.squadText = this.add.text(20, 205, '', {
+      fontFamily: 'Arial', fontSize: '23px', fontStyle: 'bold', color: '#6ee7b7',
+      backgroundColor: '#18222c', padding: { x: 8, y: 5 },
+    }).setDepth(30);
     this.updateWeaponStatsText();
 
     // -----------------------
@@ -301,6 +308,10 @@ class GameScene extends Phaser.Scene {
     this.player.update();
 
     this.troopSystem.update();
+    const protectedNow = this.time.now < this.squadProtectedUntil;
+    const alpha = protectedNow && Math.floor(this.time.now / 100) % 2 === 0 ? 0.35 : 1;
+    this.player.setAlpha(alpha);
+    for (const troop of this.troopSystem.getTroops()) troop.setAlpha(alpha);
 
     // Automatic shooting
     if (
@@ -312,14 +323,15 @@ class GameScene extends Phaser.Scene {
     }
 
     // Check enemies that reached the bottom
-    for (const child of this.enemies.getChildren()) {
+    for (const child of [...this.enemies.getChildren()]) {
       const enemy = child as Enemy;
       if (this.isGameOver) break;
       enemy.updateMovement(delta);
 
       if (
         enemy.active &&
-        enemy.y > this.scale.height
+        enemy.body?.enable &&
+        enemy.y + enemy.displayHeight / 2 >= this.player.y
       ) {
         this.enemyEscaped(enemy);
       }
@@ -361,17 +373,31 @@ class GameScene extends Phaser.Scene {
   }
 
   private enemyEscaped(enemy: Enemy) {
+    if (this.isGameOver || this.stageFinished || !enemy.active || !enemy.body?.enable) return;
+    const damage = ENEMIES[enemy.enemyType].escapeDamage;
     enemy.destroy();
-
     this.enemiesAlive--;
+    // Breaches during protection are consumed without another casualty.
+    if (this.time.now < this.squadProtectedUntil) return;
+    this.squadProtectedUntil = this.time.now + 800;
+    const lostTroop = this.troopSystem.removeTroop();
+    if (lostTroop) {
+      this.updateWeaponStatsText();
+      this.showSquadHit(lostTroop.x, lostTroop.y, '-1 TROOP');
+      this.cameras.main.flash(100, 255, 100, 60, false);
+    } else {
+      this.showSquadHit(this.player.x, this.player.y, '-' + damage + ' HEALTH');
+      this.damagePlayer(damage);
+    }
+  }
 
-    const definition =
-      ENEMIES[enemy.enemyType];
-
-    this.damagePlayer(
-      definition.escapeDamage
-    );
-
+  private showSquadHit(x: number, y: number, message: string) {
+    const label = this.add.text(x, y - 35, message, {
+      fontFamily: 'Arial', fontSize: '22px', fontStyle: 'bold', color: '#ff8a80',
+      stroke: '#101820', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(90);
+    this.tweens.add({ targets: label, y: y - 95, alpha: 0, duration: 800,
+      onComplete: () => label.destroy() });
   }
 
   private damagePlayer(amount: number) {
@@ -407,6 +433,9 @@ class GameScene extends Phaser.Scene {
 
   private gameOver() {
     this.isGameOver = true;
+    this.player.setVelocity(0, 0);
+    this.player.setAlpha(1);
+    for (const troop of this.troopSystem.getTroops()) troop.setAlpha(1);
 
     this.boss?.setVelocity(0, 0);
 
@@ -462,11 +491,17 @@ class GameScene extends Phaser.Scene {
   private createRoad() {
     this.add.rectangle(400, 450, 800, 900, 0x182822).setDepth(-20);
     this.add.rectangle(400, 450, 700, 900, 0x292e38).setDepth(-19);
+    this.add.rectangle(160, 450, 190, 900, 0x26354b).setDepth(-18);
+    this.add.rectangle(640, 450, 190, 900, 0x253e35).setDepth(-18);
+    for (const [x, title] of [[160, 'WEAPONS'], [400, 'COMBAT'], [640, '+1 TROOP']] as const) {
+      this.add.text(x, 275, title, { fontFamily: 'Arial', fontSize: '17px', color: '#d4dfeb',
+        backgroundColor: '#17212c', padding: { x: 8, y: 5 } }).setOrigin(0.5).setDepth(20);
+    }
     for (const x of [65, 735]) {
       this.add.rectangle(x, 450, 5, 900, 0xc9b887).setDepth(-18);
     }
     for (let y = -120; y < 1020; y += 120) {
-      for (const x of [285, 515]) {
+      for (const x of [260, 540]) {
         this.roadMarks.push(this.add.rectangle(x, y, 5, 55, 0x66707b).setDepth(-17));
       }
     }
@@ -482,7 +517,12 @@ class GameScene extends Phaser.Scene {
     for (const child of [...this.upgradeContainers.getChildren()]) {
       const container = child as UpgradeContainer;
       const label = container.getData('choiceLabel') as Phaser.GameObjects.Text;
-      if (label?.active) label.setPosition(container.x, container.y - 45);
+      if (label?.active) {
+        label.setPosition(container.x, container.y - 55);
+        label.setText(UPGRADES[container.upgradeId].name.toUpperCase() + '\n' +
+          (container.upgradeId === 'add-troop' ? 'BARRICADE ' : 'ARMORED CRATE ') +
+          container.health + '/' + container.maxHealth);
+      }
       if (container.y > this.scale.height + 50) {
         this.removeContainerLabel(container);
         container.destroy();
@@ -560,7 +600,7 @@ class GameScene extends Phaser.Scene {
     enemyType: EnemyType
   ) {
     const spawnWidth =
-      this.scale.width * 0.7;
+      140;
 
     const spawnLeft =
       (this.scale.width -
@@ -647,11 +687,12 @@ class GameScene extends Phaser.Scene {
         }
 
         const container = containerObject;
+        if (!bullet.active || !container.active || !container.body?.enable) return;
 
         bullet.destroy();
 
         const destroyed =
-          container.takeDamage(1);
+          container.takeDamage(this.weaponStats.damage);
 
         if (destroyed) {
           this.destroyUpgradeContainer(
@@ -686,7 +727,6 @@ class GameScene extends Phaser.Scene {
 
     card.setVelocityY(75);
 
-    this.removeOtherUpgradeChoices();
   }
 
   private removeContainerLabel(
@@ -839,13 +879,12 @@ class GameScene extends Phaser.Scene {
 
       case 'add-troop':
         this.troopSystem.addTroop();
-        this.troopSystem.addTroop();
 
         this.updateWeaponStatsText();
 
         this.showUpgradeNotification(
-          '+2 TROOPS',
-          'Reinforcements joined your squad!'
+          '+1 TROOP',
+          'A soldier joined your squad!'
         );
 
         break;
@@ -887,20 +926,23 @@ class GameScene extends Phaser.Scene {
   }
 
   private updateWeaponStatsText() {
+    const troops = this.troopSystem.getTroopCount();
+    this.squadText.setText(troops > 0 ? 'SQUAD: YOU + ' + troops : 'SQUAD: SOLO — RECRUIT!');
+    this.squadText.setColor(troops > 0 ? '#6ee7b7' : '#ff8a80');
     this.weaponStatsText.setText([
       `Damage: ${this.weaponStats.damage}`,
       `Fire Rate: ${Math.round(this.weaponStats.fireRate)}ms`,
-      `Troops: ${this.troopSystem.getTroopCount()}`,
+
     ]);
   }
 
   private spawnUpgradeChoice() {
-    const choices: UpgradeId[] = ['add-troop', 'heavy-rounds'];
-    this.showUpgradeNotification('CHOOSE YOUR ROUTE', 'Shoot a crate, then collect its upgrade');
+    const choices: UpgradeId[] = [this.stageElapsed < 20000 ? 'heavy-rounds' : 'rapid-fire', 'add-troop'];
+    this.showUpgradeNotification('CHOOSE YOUR ROUTE', 'Left: weapons • Center: hordes • Right: troops');
 
     const positions = [
-      this.scale.width * 0.22,
-      this.scale.width * 0.78,
+      this.scale.width * 0.20,
+      this.scale.width * 0.80,
     ];
 
     choices.forEach(

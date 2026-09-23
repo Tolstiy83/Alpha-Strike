@@ -12,7 +12,7 @@ export class TroopSystem {
   private troopSpacingX = 30;
   private troopSpacingY = 36;
 
-  private troopsPerRow = 5;
+  private troopsPerRow = 3;
 
   constructor(
     scene: Phaser.Scene,
@@ -35,6 +35,15 @@ export class TroopSystem {
     this.troops.add(troop);
 
     this.updateFormation();
+  }
+
+  removeTroop(): { x: number; y: number } | undefined {
+    const troop = this.getTroops().at(-1);
+    if (!troop) return undefined;
+    const position = { x: troop.x, y: troop.y };
+    this.troops.remove(troop, true, true);
+    this.updateFormation();
+    return position;
   }
 
   update() {

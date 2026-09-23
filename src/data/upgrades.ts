@@ -29,10 +29,10 @@ export const UPGRADES:
 
   'add-troop': {
     id: 'add-troop',
-    name: '+2 Troops',
-    cardLabel: '+2\nTROOPS',
+    name: '+1 Troop',
+    cardLabel: '+1\nTROOP',
     description:
-      'Two soldiers joined your squad!',
+      'A soldier joined your squad!',
   },
 };
 

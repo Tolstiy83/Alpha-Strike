@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import type { UpgradeId } from '../data/upgrades';
 
 export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
-  private health = 5;
+  public health: number;
+  public readonly maxHealth: number;
   private isBroken = false;
 
   public readonly upgradeId: UpgradeId;
@@ -21,9 +22,13 @@ export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
         );
 
         this.upgradeId = upgradeId;
+        this.maxHealth = upgradeId === 'add-troop' ? 10 : 24;
+        this.health = this.maxHealth;
 
         scene.add.existing(this);
         scene.physics.add.existing(this);
+        this.setDisplaySize(upgradeId === 'add-troop' ? 70 : 100, 60);
+        this.setTint(upgradeId === 'add-troop' ? 0x99ff99 : 0xaabbff);
     }
 
   takeDamage(amount: number): boolean {
@@ -31,14 +36,14 @@ export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
       return false;
     }
 
-    this.health -= amount;
+    this.health = Math.max(0, this.health - amount);
 
     // Hit flash
     this.setTint(0xffffff);
 
     this.scene.time.delayedCall(50, () => {
       if (this.active && !this.isBroken) {
-        this.clearTint();
+        this.setTint(this.upgradeId === 'add-troop' ? 0x99ff99 : 0xaabbff);
       }
     });
 

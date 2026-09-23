@@ -17,7 +17,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   updateMovement(delta: number) {
     if (!this.active || this.health <= 0 || delta <= 0) return;
     this.phase += delta / 1000 * (this.enraged ? 1.5 : 0.9);
-    const target = this.scene.scale.width / 2 + Math.sin(this.phase) * 230;
+    const target = this.scene.scale.width / 2 + Math.sin(this.phase) * 55;
     this.setVelocityX((target - this.x) / (delta / 1000));
     this.setTint(this.enraged ? 0xff756b : 0xffffff);
   }
