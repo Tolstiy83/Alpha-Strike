@@ -5,6 +5,7 @@ import { TroopSystem } from './systems/TroopSystems';
 
 import { Player } from './entities/Player';
 import { Projectile } from './entities/Projectile';
+import { Boss } from './entities/Boss';
 import { Enemy } from './entities/Enemy';
 import { UpgradeContainer } from './entities/UpgradeContainer';
 import { UpgradeCard } from './entities/UpgradeCard';
@@ -19,6 +20,12 @@ import {
 } from './data/enemies';
 
 class GameScene extends Phaser.Scene {
+  private boss?: Boss;
+  private bossLabel?: Phaser.GameObjects.Text;
+  private bossBar?: Phaser.GameObjects.Rectangle;
+  private bossBarBackground?: Phaser.GameObjects.Rectangle;
+  private bossSummonElapsed = 0;
+  private rewardPending = false;
   private player!: Player;
 
   private troopSystem!: TroopSystem;
@@ -61,6 +68,12 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.boss = undefined;
+    this.bossLabel = undefined;
+    this.bossBar = undefined;
+    this.bossBarBackground = undefined;
+    this.bossSummonElapsed = 0;
+    this.rewardPending = false;
     this.score = 0;
 
     this.wave = 0;
@@ -275,6 +288,7 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
+    this.updateBoss(delta);
     this.player.update();
 
     this.troopSystem.update();
@@ -330,6 +344,7 @@ class GameScene extends Phaser.Scene {
           this.scale.height + 50
         ) {
           card.destroy();
+          this.finishRewardPhase();
         }
       }
     }
@@ -386,6 +401,8 @@ class GameScene extends Phaser.Scene {
   private gameOver() {
     this.isGameOver = true;
     this.waveInProgress = false;
+
+    this.boss?.setVelocity(0, 0);
 
     // Stop all Phaser timers
     this.time.removeAllEvents();
@@ -451,7 +468,7 @@ class GameScene extends Phaser.Scene {
       this.add.text(
         this.scale.width / 2,
         this.scale.height / 2,
-        `WAVE ${this.wave}`,
+        this.wave === 5 ? 'WAVE 5 — BOSS' : `WAVE ${this.wave}`,
         {
           fontFamily: 'Arial',
           fontSize: '48px',
@@ -475,6 +492,10 @@ class GameScene extends Phaser.Scene {
 
   private beginWave() {
     this.waveInProgress = true;
+    if (this.wave === 5) {
+      this.beginBossWave();
+      return;
+    }
 
     this.enemiesToSpawn =
       4 + this.wave * 2;
@@ -782,17 +803,72 @@ class GameScene extends Phaser.Scene {
       // Remove the card
       card.destroy();
 
-      // Give the player a short moment
-      // before starting the next wave
-      this.time.delayedCall(
-        1000,
-        () => {
-          if (!this.isGameOver) {
-            this.startNextWave();
-          }
-        }
-      );
+      this.finishRewardPhase();
     };
+
+  private finishRewardPhase() {
+    if (!this.rewardPending || this.isGameOver) return;
+    this.rewardPending = false;
+    this.time.delayedCall(1000, () => {
+      if (!this.isGameOver) this.startNextWave();
+    });
+  }
+
+  private beginBossWave() {
+    this.enemiesAlive = 0;
+    this.bossSummonElapsed = 0;
+    const boss = new Boss(this);
+    this.boss = boss;
+    this.bossLabel = this.add.text(300, 65, 'IRON COMMANDER — PHASE 1', {
+      fontFamily: 'Arial', fontSize: '18px', color: '#ffcc80',
+    }).setDepth(30);
+    this.bossBarBackground = this.add.rectangle(300, 100, 460, 16, 0x343444)
+      .setOrigin(0, 0.5).setDepth(30);
+    this.bossBar = this.add.rectangle(300, 100, 460, 16, 0xffb74d)
+      .setOrigin(0, 0.5).setDepth(31);
+    // Arcade sprite/group callbacks receive the single sprite first.
+    const overlap = this.physics.add.overlap(boss, this.projectiles, (_boss, object) => {
+      const bullet = object as Projectile;
+      if (this.isGameOver || !bullet.active || !boss.active || boss.health <= 0) return;
+      bullet.destroy();
+      const wasEnraged = boss.enraged;
+      const killed = boss.takeDamage(this.weaponStats.damage);
+      this.bossBar!.width = 460 * boss.health / boss.maxHealth;
+      if (killed) {
+        overlap.destroy();
+        boss.destroy();
+        this.boss = undefined;
+        this.bossLabel?.destroy();
+        this.bossBar?.destroy();
+        this.bossBarBackground?.destroy();
+        this.enemies.clear(true, true);
+        this.enemiesAlive = 0;
+        this.projectiles.clear(true, true);
+        this.score += 2000;
+        this.scoreText.setText('Score: ' + this.score);
+        this.checkWaveComplete();
+      } else if (!wasEnraged && boss.enraged) {
+        this.bossLabel!.setText('IRON COMMANDER — PHASE 2');
+        this.bossBar!.setFillStyle(0xff5252);
+        this.showUpgradeNotification('COMMANDER ENRAGED', 'Faster movement • More reinforcements');
+      }
+    });
+  }
+
+  private updateBoss(delta: number) {
+    if (!this.boss?.active) return;
+    this.boss.updateMovement(delta);
+    this.bossSummonElapsed += delta;
+    const interval = this.boss.enraged ? 3500 : 5500;
+    if (this.bossSummonElapsed < interval) return;
+    this.bossSummonElapsed = 0;
+    // Limit reinforcements so long fights cannot flood the battlefield.
+    const count = Math.min(this.boss.enraged ? 3 : 2, 8 - this.enemiesAlive);
+    for (let i = 0; i < count; i++) {
+      this.enemiesAlive++;
+      this.spawnEnemy(i === 1 ? 'runner' : 'grunt');
+    }
+  }
 
   private applyUpgrade(upgradeId: UpgradeId) {
     console.log(
@@ -963,6 +1039,7 @@ class GameScene extends Phaser.Scene {
     if (
       !this.waveInProgress ||
       this.enemiesAlive > 0 ||
+      this.boss?.active ||
       this.isGameOver
     ) {
       return;
@@ -997,6 +1074,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private startUpgradePhase() {
+    this.rewardPending = true;
     const text = this.add.text(
       this.scale.width / 2,
       220,
@@ -1026,6 +1104,7 @@ class GameScene extends Phaser.Scene {
 
   private createTextures() {
     if (
+      this.textures.exists('boss') &&
       this.textures.exists('player') &&
       this.textures.exists('bullet') &&
       this.textures.exists('enemy') &&
@@ -1040,6 +1119,18 @@ class GameScene extends Phaser.Scene {
       x: 0,
       y: 0,
     });
+
+    graphics.fillStyle(0x607d8b);
+    graphics.fillRect(0, 18, 150, 50);
+    graphics.fillStyle(0xb0bec5);
+    graphics.fillRect(30, 0, 90, 85);
+    graphics.fillStyle(0xffb74d);
+    graphics.fillRect(52, 25, 46, 30);
+    graphics.fillStyle(0x263238);
+    graphics.fillRect(8, 50, 18, 40);
+    graphics.fillRect(124, 50, 18, 40);
+    graphics.generateTexture('boss', 150, 90);
+    graphics.clear();
 
     graphics.fillStyle(0x4fc3f7);
     graphics.fillTriangle(
