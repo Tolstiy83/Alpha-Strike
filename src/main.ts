@@ -270,7 +270,7 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  update(time: number) {
+  update(time: number, delta: number) {
     if (this.isGameOver) {
       return;
     }
@@ -291,6 +291,7 @@ class GameScene extends Phaser.Scene {
     // Check enemies that reached the bottom
     for (const child of this.enemies.getChildren()) {
       const enemy = child as Enemy;
+      enemy.updateMovement(delta);
 
       if (
         enemy.active &&

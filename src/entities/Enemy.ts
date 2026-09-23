@@ -11,6 +11,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     private isDead = false;
 
     private enemyColor: number;
+    private movementElapsedMs = 0;
+    private readonly spawnX: number;
   
     constructor(
         scene: Phaser.Scene,
@@ -26,6 +28,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         );
 
         this.enemyType = enemyType;
+        this.spawnX = x;
 
         const definition =
             ENEMIES[enemyType];
@@ -51,6 +54,39 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.setTint(
             this.enemyColor
         );
+    }
+
+    updateMovement(delta: number) {
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        if (!this.active || this.isDead || !body.enable || delta <= 0) {
+            return;
+        }
+
+        const movement = ENEMIES[this.enemyType].movement;
+        if (movement.pattern === 'straight') {
+            this.setVelocityX(0);
+            return;
+        }
+
+        this.movementElapsedMs =
+            (this.movementElapsedMs + delta) % movement.periodMs;
+
+        // Reduce sway near an edge so the entire enemy stays on screen.
+        const halfWidth = this.displayWidth / 2;
+        const centerX = Phaser.Math.Clamp(
+            this.spawnX, halfWidth, this.scene.scale.width - halfWidth
+        );
+        const amplitude = Math.max(0, Math.min(
+            movement.amplitude,
+            centerX - halfWidth,
+            this.scene.scale.width - halfWidth - centerX
+        ));
+        const phase = this.movementElapsedMs / movement.periodMs * Math.PI * 2;
+        const targetX = centerX + Math.sin(phase) * amplitude;
+
+        // Use Arcade velocity to keep the collision body with the sprite.
+        // Preserve the downward speed assigned when the enemy spawned.
+        this.setVelocityX((targetX - this.x) / (delta / 1000));
     }
 
 takeDamage(amount: number): boolean {

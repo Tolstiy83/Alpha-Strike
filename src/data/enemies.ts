@@ -3,6 +3,10 @@ export type EnemyType =
   | 'runner'
   | 'tank';
 
+export type EnemyMovement =
+  | { pattern: 'straight' }
+  | { pattern: 'zigzag'; amplitude: number; periodMs: number };
+
 export interface EnemyDefinition {
   type: EnemyType;
   health: number;
@@ -11,6 +15,7 @@ export interface EnemyDefinition {
   color: number;
   escapeDamage: number;
   scoreValue: number;
+  movement: EnemyMovement;
 }
 
 export const ENEMIES:
@@ -24,6 +29,7 @@ export const ENEMIES:
     color: 0xef5350,
     escapeDamage: 20,
     scoreValue: 100,
+    movement: { pattern: 'straight' },
   },
 
   runner: {
@@ -34,6 +40,7 @@ export const ENEMIES:
     color: 0xff9800,
     escapeDamage: 10,
     scoreValue: 125,
+    movement: { pattern: 'zigzag', amplitude: 40, periodMs: 2000 },
   },
 
   tank: {
@@ -44,5 +51,6 @@ export const ENEMIES:
     color: 0x8e24aa,
     escapeDamage: 35,
     scoreValue: 250,
+    movement: { pattern: 'straight' },
   },
 };
