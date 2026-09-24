@@ -28,7 +28,6 @@ class GameScene extends Phaser.Scene {
   private encounterIndex = 0;
   private stageFinished = false;
   private bossStarted = false;
-  private roadMarks: Phaser.GameObjects.Rectangle[] = [];
   private progressFill!: Phaser.GameObjects.Rectangle;
   private readonly encounters = [2000, 9000, 18000, 27000, 37000, 46000];
   private squadProtectedUntil = 0;
@@ -82,7 +81,6 @@ class GameScene extends Phaser.Scene {
     this.encounterIndex = 0;
     this.stageFinished = false;
     this.bossStarted = false;
-    this.roadMarks = [];
     this.squadProtectedUntil = 0;
     this.score = 0;
 
@@ -252,7 +250,7 @@ class GameScene extends Phaser.Scene {
     this.waveText = this.add.text(
       470,
       20,
-      'ROAD 1 • 0%',
+      'STAGE 1 • 0%',
       {
         fontFamily: 'Arial',
         fontSize: '20px',
@@ -502,7 +500,7 @@ class GameScene extends Phaser.Scene {
     }
     for (let y = -120; y < 1020; y += 120) {
       for (const x of [260, 540]) {
-        this.roadMarks.push(this.add.rectangle(x, y, 5, 55, 0x66707b).setDepth(-17));
+        this.add.rectangle(x, y, 5, 55, 0x66707b).setDepth(-17);
       }
     }
     this.add.rectangle(470, 50, 290, 6, 0x414a56).setOrigin(0).setDepth(25);
@@ -510,10 +508,6 @@ class GameScene extends Phaser.Scene {
   }
 
   private updateRoad(delta: number) {
-    for (const mark of this.roadMarks) {
-      mark.y += delta * 0.1;
-      if (mark.y > 1020) mark.y -= 1200;
-    }
     for (const child of [...this.upgradeContainers.getChildren()]) {
       const container = child as UpgradeContainer;
       const label = container.getData('choiceLabel') as Phaser.GameObjects.Text;
@@ -533,24 +527,34 @@ class GameScene extends Phaser.Scene {
     this.stageElapsed = Math.min(55000, this.stageElapsed + delta);
     const progress = this.stageElapsed / 55000;
     this.progressFill.width = 290 * progress;
-    this.waveText.setText('ROAD 1 • ' + Math.floor(progress * 100) + '%');
+    this.waveText.setText('STAGE 1 • ' + Math.floor(progress * 100) + '%');
     this.wave = 1 + Math.floor(progress * 4);
-    if (previous < 13000 && this.stageElapsed >= 13000) this.spawnUpgradeChoice();
-    if (previous < 32000 && this.stageElapsed >= 32000) this.spawnUpgradeChoice();
+    const supplySchedule: { at: number; id: UpgradeId }[] = [
+      { at: 6000, id: 'heavy-rounds' },
+      { at: 17000, id: 'add-troop' },
+      { at: 29000, id: 'rapid-fire' },
+      { at: 41000, id: 'add-troop' },
+    ];
+    for (const supply of supplySchedule) {
+      if (previous < supply.at && this.stageElapsed >= supply.at) {
+        this.spawnUpgradeObstacle(supply.id);
+      }
+    }
     while (this.encounterIndex < this.encounters.length &&
       this.stageElapsed >= this.encounters[this.encounterIndex]) {
       const index = this.encounterIndex++;
-      for (let i = 0; i < 4 + index; i++) {
+      for (let i = 0; i < 12 + index * 3; i++) {
         this.enemiesAlive++;
         this.spawnEnemy(index >= 3 && i === 0 ? 'tank' :
-          index >= 1 && i % 3 === 0 ? 'runner' : 'grunt');
+          index >= 1 && i % 5 === 0 ? 'runner' : 'grunt',
+          340 + (i % 5) * 30, -35 - Math.floor(i / 5) * 34);
       }
     }
     if (this.stageElapsed >= 55000 && this.enemiesAlive === 0) {
       this.bossStarted = true;
       this.removeOtherUpgradeChoices();
       this.upgradeCards.clear(true, true);
-      this.waveText.setText('ROAD 1 • BOSS');
+      this.waveText.setText('STAGE 1 • BOSS');
       this.beginBossWave();
     }
   }
@@ -597,7 +601,9 @@ class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(
-    enemyType: EnemyType
+    enemyType: EnemyType,
+    formationX?: number,
+    formationY = -30
   ) {
     const spawnWidth =
       140;
@@ -617,8 +623,8 @@ class GameScene extends Phaser.Scene {
 
     const enemy = new Enemy(
       this,
-      x,
-      -30,
+      formationX ?? x,
+      formationY,
       enemyType
     );
 
@@ -936,35 +942,15 @@ class GameScene extends Phaser.Scene {
     ]);
   }
 
-  private spawnUpgradeChoice() {
-    const choices: UpgradeId[] = [this.stageElapsed < 20000 ? 'heavy-rounds' : 'rapid-fire', 'add-troop'];
-    this.showUpgradeNotification('CHOOSE YOUR ROUTE', 'Left: weapons • Center: hordes • Right: troops');
-
-    const positions = [
-      this.scale.width * 0.20,
-      this.scale.width * 0.80,
-    ];
-
-    choices.forEach(
-      (upgradeId, index) => {
-        const container =
-          new UpgradeContainer(
-            this,
-            positions[index],
-            -40,
-            upgradeId
-          );
-
-        this.upgradeContainers.add(
-          container
-        );
-
-        container.setVelocityY(90);
-        this.createUpgradeChoiceLabel(
-          container
-        );
-      }
-    );
+  private spawnUpgradeObstacle(upgradeId: UpgradeId) {
+    const troopReward = upgradeId === 'add-troop';
+    this.showUpgradeNotification(troopReward ? 'TROOP BARRICADE' : 'WEAPON CRATE',
+      troopReward ? 'Right lane • Break it to recruit' : 'Left lane • Break it to upgrade');
+    const container = new UpgradeContainer(this,
+      this.scale.width * (troopReward ? 0.8 : 0.2), -40, upgradeId);
+    this.upgradeContainers.add(container);
+    container.setVelocityY(90);
+    this.createUpgradeChoiceLabel(container);
   }
 
   private createUpgradeChoiceLabel(
@@ -1001,7 +987,7 @@ class GameScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.removeOtherUpgradeChoices();
     this.upgradeCards.clear(true, true);
-    this.waveText.setText('ROAD 1 • COMPLETE');
+    this.waveText.setText('STAGE 1 • COMPLETE');
     this.add.rectangle(400, 450, 620, 240, 0x101820, 0.95).setDepth(100);
     this.add.text(400, 395, 'STAGE CLEAR', {
       fontFamily: 'Arial', fontSize: '44px', color: '#6ee7b7',
