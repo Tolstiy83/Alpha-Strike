@@ -21,7 +21,17 @@ import {
   type EnemyType,
 } from './data/enemies';
 
+interface StageCarry {
+  stage?: number;
+  weapon?: WeaponId;
+  troops?: number;
+  health?: number;
+  score?: number;
+  stats?: { fireRate: number; damage: number };
+}
+
 class GameScene extends Phaser.Scene {
+  private stage = 1;
   private equippedWeapon: WeaponId = 'pistol';
   private hitBoss?: (damage: number) => void;
   private boss?: Boss;
@@ -80,8 +90,9 @@ class GameScene extends Phaser.Scene {
     this.load.image('character-art', '/art/characters-v1.png');
   }
 
-  create() {
-    this.equippedWeapon = 'pistol';
+  create(carry: StageCarry = {}) {
+    this.stage = carry.stage ?? 1;
+    this.equippedWeapon = carry.weapon ?? 'pistol';
     this.hitBoss = undefined;
     this.bossWarning?.destroy();
     this.bossWarning = undefined;
@@ -94,12 +105,12 @@ class GameScene extends Phaser.Scene {
     this.stageFinished = false;
     this.bossStarted = false;
     this.squadProtectedUntil = 0;
-    this.score = 0;
+    this.score = carry.score ?? 0;
 
     this.wave = 0;
     this.enemiesAlive = 0;
 
-    this.playerHealth = this.maxPlayerHealth;
+    this.playerHealth = carry.health ?? this.maxPlayerHealth;
 
     this.isGameOver = false;
 
@@ -110,6 +121,7 @@ class GameScene extends Phaser.Scene {
       damage: 1,
     };
 
+    if (carry.stats) this.weaponStats = { ...carry.stats };
     this.createTextures();
     this.createRoad();
     installCharacterArt(this);
@@ -133,8 +145,7 @@ class GameScene extends Phaser.Scene {
     // Physics groups
     // -----------------------
 
-    this.troopSystem.addTroop();
-    this.troopSystem.addTroop();
+    for (let i = 0; i < (carry.troops ?? 2); i++) this.troopSystem.addTroop();
 
     this.projectiles = this.physics.add.group();
 
@@ -221,7 +232,7 @@ class GameScene extends Phaser.Scene {
     this.scoreText = this.add.text(
       20,
       55,
-      'Score: 0',
+      'Score: ' + this.score,
       {
         fontFamily: 'Arial',
         fontSize: '20px',
@@ -259,11 +270,12 @@ class GameScene extends Phaser.Scene {
     );
 
     this.healthBarFill.setOrigin(0, 0.5);
+    this.healthBarFill.width = this.healthBarWidth * this.playerHealth / this.maxPlayerHealth;
 
     this.waveText = this.add.text(
       470,
       20,
-      'STAGE 1 • 0%',
+      'STAGE ' + this.stage + ' • 0%',
       {
         fontFamily: 'Arial',
         fontSize: '20px',
@@ -299,14 +311,17 @@ class GameScene extends Phaser.Scene {
     );
 
 
-    this.input.keyboard!.on(
-      'keydown-SPACE',
-      () => {
-        if (this.isGameOver || this.stageFinished) {
-          this.scene.restart();
-        }
-      }
-    );
+    const onSpace = () => {
+      if (this.stageFinished && this.stage === 1) {
+        this.scene.restart({ stage: 2, weapon: this.equippedWeapon,
+          troops: this.troopSystem.getTroopCount(), health: Math.min(100, this.playerHealth + 30),
+          score: this.score, stats: { ...this.weaponStats } });
+      } else if (this.isGameOver || this.stageFinished) this.scene.restart({});
+    };
+    this.input.keyboard!.on('keydown-SPACE', onSpace);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.off('keydown-SPACE', onSpace);
+    });
   }
 
   update(time: number, delta: number) {
@@ -508,7 +523,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private createRoad() {
-    drawDesertRoad(this);
+    drawDesertRoad(this, this.stage === 2);
     for (const [x, title, color] of [[160, 'WEAPONS', '#ffd27a'], [400, 'HORDE', '#ff9380'], [640, '+1 TROOP', '#83dcff']] as const) {
       this.add.text(x, 255, title, {fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color,
         backgroundColor: '#17212c', padding: {x: 12, y: 6}}).setOrigin(0.5).setDepth(30);
@@ -537,7 +552,7 @@ class GameScene extends Phaser.Scene {
     this.stageElapsed = Math.min(55000, this.stageElapsed + delta);
     const progress = this.stageElapsed / 55000;
     this.progressFill.width = 290 * progress;
-    this.waveText.setText('STAGE 1 • ' + Math.floor(progress * 100) + '%');
+    this.waveText.setText('STAGE ' + this.stage + ' • ' + Math.floor(progress * 100) + '%');
     this.wave = 1 + Math.floor(progress * 4);
     const supplySchedule: { at: number; id: 'weapon' | 'add-troop' }[] = [
       { at: 6000, id: 'weapon' },
@@ -557,9 +572,9 @@ class GameScene extends Phaser.Scene {
     while (this.encounterIndex < this.encounters.length &&
       this.stageElapsed >= this.encounters[this.encounterIndex]) {
       const index = this.encounterIndex++;
-      for (let i = 0; i < 12 + index * 3; i++) {
+      for (let i = 0; i < 12 + index * 3 + (this.stage === 2 ? 3 : 0); i++) {
         this.enemiesAlive++;
-        this.spawnEnemy(index >= 3 && i === 0 ? 'tank' :
+        this.spawnEnemy(this.stage === 2 ? (i % 7 === 0 ? 'tank' : i % 3 === 0 ? 'runner' : 'grunt') : index >= 3 && i === 0 ? 'tank' :
           index >= 1 && i % 5 === 0 ? 'runner' : 'grunt',
           340 + (i % 5) * 30, -35 - Math.floor(i / 5) * 34);
       }
@@ -568,7 +583,7 @@ class GameScene extends Phaser.Scene {
       this.bossStarted = true;
       this.removeOtherUpgradeChoices();
       this.upgradeCards.clear(true, true);
-      this.waveText.setText('STAGE 1 • BOSS');
+      this.waveText.setText('STAGE ' + this.stage + ' • BOSS');
       this.beginBossWave();
     }
   }
@@ -779,9 +794,9 @@ class GameScene extends Phaser.Scene {
 
   private beginBossWave() {
     this.enemiesAlive = 0;
-    const boss = new Boss(this);
+    const boss = new Boss(this, this.stage === 2);
     this.boss = boss;
-    this.bossLabel = this.add.text(300, 65, 'IRON COMMANDER — PHASE 1', {
+    this.bossLabel = this.add.text(300, 65, this.stage === 2 ? 'SIEGE BRUTE — PHASE 1' : 'IRON COMMANDER — PHASE 1', {
       fontFamily: 'Arial', fontSize: '18px', color: '#ffcc80',
     }).setDepth(30);
     this.bossBarBackground = this.add.rectangle(300, 100, 460, 16, 0x343444)
@@ -816,7 +831,7 @@ class GameScene extends Phaser.Scene {
         this.scoreText.setText('Score: ' + this.score);
         this.completeStage();
       } else if (!wasEnraged && boss.enraged) {
-        this.bossLabel!.setText('IRON COMMANDER — PHASE 2');
+        this.bossLabel!.setText(this.stage === 2 ? 'SIEGE BRUTE — PHASE 2' : 'IRON COMMANDER — PHASE 2');
         this.bossBar!.setFillStyle(0xff5252);
         this.showUpgradeNotification('COMMANDER ENRAGED', 'Faster movement • Faster attacks');
       }
@@ -828,7 +843,7 @@ class GameScene extends Phaser.Scene {
     const action = this.boss.updateCombat(delta, this.player.x, this.player.y);
     if (action === 'warning') {
       this.bossWarning?.destroy();
-      this.bossWarning = this.add.circle(this.boss.x, this.player.y, 95, 0xff493b, 0.25)
+      this.bossWarning = this.add.circle(this.stage === 2 ? this.player.x : this.boss.x, this.player.y, 95, 0xff493b, 0.25)
         .setStrokeStyle(4, 0xffbe73).setDepth(1);
     } else if (action === 'strike') {
       const warning = this.bossWarning;
@@ -836,8 +851,9 @@ class GameScene extends Phaser.Scene {
       if (warning) {
         const hit = Math.abs(this.player.x - warning.x) <= 95 ||
           this.troopSystem.getTroops().some(troop => Math.abs(troop.x - warning.x) <= 95);
+        const strikeX = warning.x;
         warning.destroy();
-        const impact = this.add.circle(this.boss.x, this.player.y, 95, 0xffb45e, 0.7).setDepth(10);
+        const impact = this.add.circle(strikeX, this.player.y, 95, 0xffb45e, 0.7).setDepth(10);
         this.tweens.add({targets: impact, alpha: 0, scale: 1.3, duration: 250,
           onComplete: () => impact.destroy()});
         this.cameras.main.shake(150, 0.006);
@@ -998,12 +1014,12 @@ class GameScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.removeOtherUpgradeChoices();
     this.upgradeCards.clear(true, true);
-    this.waveText.setText('STAGE 1 • COMPLETE');
+    this.waveText.setText('STAGE ' + this.stage + ' • COMPLETE');
     this.add.rectangle(400, 450, 620, 240, 0x101820, 0.95).setDepth(100);
-    this.add.text(400, 395, 'STAGE CLEAR', {
+    this.add.text(400, 395, this.stage === 1 ? 'STAGE CLEAR' : 'CAMPAIGN CLEAR', {
       fontFamily: 'Arial', fontSize: '44px', color: '#6ee7b7',
     }).setOrigin(0.5).setDepth(101);
-    this.add.text(400, 465, 'Score: ' + this.score + '\nPress SPACE to play again', {
+    this.add.text(400, 465, 'Score: ' + this.score + (this.stage === 1 ? '\n+30 Health • Keep squad & weapon\nSPACE: Enter the ruined city' : '\nBoth bosses defeated!\nSPACE: New campaign'), {
       fontFamily: 'Arial', fontSize: '23px', color: '#ffffff', align: 'center',
     }).setOrigin(0.5).setDepth(101);
   }

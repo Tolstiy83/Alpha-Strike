@@ -6,11 +6,13 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   private attackElapsed = 0;
   private windingUp = false;
   private recovery = 0;
+  private ranged: boolean;
 
   get enraged() { return this.health <= this.maxHealth / 2; }
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, ranged = false) {
     super(scene, scene.scale.width / 2, 190, 'boss');
+    this.ranged = ranged;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setImmovable(true);
@@ -22,7 +24,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     if (this.windingUp) {
       this.setVelocity(0, 0);
       this.attackElapsed += delta;
-      if (this.attackElapsed >= (this.enraged ? 650 : 900)) {
+      if (this.attackElapsed >= (this.ranged ? (this.enraged ? 850 : 1200) : (this.enraged ? 650 : 900))) {
         this.windingUp = false;
         this.recovery = this.enraged ? 1200 : 1800;
         return 'strike';
@@ -35,8 +37,8 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
       return;
     }
     const dx = targetX - this.x;
-    const dy = Math.max(0, targetY - 70 - this.y);
-    if (dy <= 5 && Math.abs(dx) <= 80) {
+    const dy = Math.max(0, targetY - (this.ranged ? 280 : 70) - this.y);
+    if (dy <= 5 && (this.ranged || Math.abs(dx) <= 80)) {
       this.setVelocity(0, 0);
       this.windingUp = true;
       this.attackElapsed = 0;

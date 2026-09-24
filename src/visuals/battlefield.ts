@@ -51,9 +51,9 @@ export function createBattlefieldTextures(scene: Phaser.Scene) {
   g.destroy();
 }
 
-export function drawDesertRoad(scene: Phaser.Scene) {
+export function drawDesertRoad(scene: Phaser.Scene, city = false) {
   const g = scene.add.graphics().setDepth(-20);
-  g.fillStyle(0xd4ae76); g.fillRect(0, 0, 800, 900);
+  g.fillStyle(city ? 0x777a76 : 0xd4ae76); g.fillRect(0, 0, 800, 900);
   for (let i = 0; i < 65; i++) {
     const x = (i * 137) % 800, y = (i * 193) % 900;
     g.fillStyle(i % 2 ? 0xb68b56 : 0xe7c58e, 0.45);
@@ -70,7 +70,16 @@ export function drawDesertRoad(scene: Phaser.Scene) {
   for (let y = 20; y < 900; y += 95) {
     g.fillStyle(0xe1ddd0,0.7); g.fillRect(398,y,4,30 + y / 60);
   }
-  for (let i = 0; i < 12; i++) {
+  if (city) {
+    for (let y = 30; y < 900; y += 120) {
+      for (const x of [0, 750]) {
+        g.fillStyle(0x424953); g.fillRect(x, y, 50, 90);
+        g.fillStyle(0x1d252c); g.fillRect(x + 12, y + 12, 12, 20); g.fillRect(x + 30, y + 12, 12, 20);
+        g.fillStyle(0x91958e); g.fillRect(x, y, 50, 6);
+      }
+    }
+  }
+  for (let i = 0; i < (city ? 0 : 12); i++) {
     const y = 80 + i * 66, x = i % 2 ? 765 : 30;
     g.lineStyle(5,0x647044); g.lineBetween(x,y,x,y+28);
     g.lineBetween(x-8,y+8,x-8,y+17); g.lineBetween(x-8,y+17,x+8,y+17);
