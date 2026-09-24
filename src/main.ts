@@ -1,3 +1,4 @@
+import { installCharacterArt } from './visuals/characters';
 import { createBattlefieldTextures, drawDesertRoad } from './visuals/battlefield';
 import './style.css';
 import Phaser from 'phaser';
@@ -21,6 +22,7 @@ import {
 
 class GameScene extends Phaser.Scene {
   private boss?: Boss;
+  private bossWarning?: Phaser.GameObjects.Arc;
   private bossLabel?: Phaser.GameObjects.Text;
   private bossBar?: Phaser.GameObjects.Rectangle;
   private bossBarBackground?: Phaser.GameObjects.Rectangle;
@@ -72,7 +74,13 @@ class GameScene extends Phaser.Scene {
     super('GameScene');
   }
 
+  preload() {
+    this.load.image('character-art', '/art/characters-v1.png');
+  }
+
   create() {
+    this.bossWarning?.destroy();
+    this.bossWarning = undefined;
     this.boss = undefined;
     this.bossLabel = undefined;
     this.bossBar = undefined;
@@ -101,6 +109,7 @@ class GameScene extends Phaser.Scene {
 
     this.createTextures();
     this.createRoad();
+    installCharacterArt(this);
 
     // -----------------------
     // Player
@@ -376,7 +385,12 @@ class GameScene extends Phaser.Scene {
     const damage = ENEMIES[enemy.enemyType].escapeDamage;
     enemy.destroy();
     this.enemiesAlive--;
-    // Breaches during protection are consumed without another casualty.
+    this.damageSquad(damage);
+  }
+
+  private damageSquad(damage: number) {
+    if (this.isGameOver || this.stageFinished) return;
+    // Breaches and boss strikes share the same protection window.
     if (this.time.now < this.squadProtectedUntil) return;
     this.squadProtectedUntil = this.time.now + 800;
     const lostTroop = this.troopSystem.removeTroop();
@@ -437,6 +451,8 @@ class GameScene extends Phaser.Scene {
     for (const troop of this.troopSystem.getTroops()) troop.setAlpha(1);
 
     this.boss?.setVelocity(0, 0);
+    this.bossWarning?.destroy();
+    this.bossWarning = undefined;
 
     // Stop all Phaser timers
     this.time.removeAllEvents();
@@ -808,6 +824,8 @@ class GameScene extends Phaser.Scene {
       const killed = boss.takeDamage(this.weaponStats.damage);
       this.bossBar!.width = 460 * boss.health / boss.maxHealth;
       if (killed) {
+        this.bossWarning?.destroy();
+        this.bossWarning = undefined;
         overlap.destroy();
         boss.destroy();
         this.boss = undefined;
@@ -830,7 +848,26 @@ class GameScene extends Phaser.Scene {
 
   private updateBoss(delta: number) {
     if (!this.boss?.active) return;
-    this.boss.updateMovement(delta);
+    const action = this.boss.updateCombat(delta, this.player.x, this.player.y);
+    if (action === 'warning') {
+      this.bossWarning?.destroy();
+      this.bossWarning = this.add.circle(this.boss.x, this.player.y, 95, 0xff493b, 0.25)
+        .setStrokeStyle(4, 0xffbe73).setDepth(1);
+    } else if (action === 'strike') {
+      const warning = this.bossWarning;
+      this.bossWarning = undefined;
+      if (warning) {
+        const hit = Math.abs(this.player.x - warning.x) <= 95 ||
+          this.troopSystem.getTroops().some(troop => Math.abs(troop.x - warning.x) <= 95);
+        warning.destroy();
+        const impact = this.add.circle(this.boss.x, this.player.y, 95, 0xffb45e, 0.7).setDepth(10);
+        this.tweens.add({targets: impact, alpha: 0, scale: 1.3, duration: 250,
+          onComplete: () => impact.destroy()});
+        this.cameras.main.shake(150, 0.006);
+        if (hit) this.damageSquad(30);
+      }
+    }
+    if (this.isGameOver) return;
     this.bossSummonElapsed += delta;
     const interval = this.boss.enraged ? 3500 : 5500;
     if (this.bossSummonElapsed < interval) return;
