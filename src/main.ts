@@ -1,3 +1,4 @@
+import { WEAPONS, type WeaponId } from './data/weapons';
 import { installCharacterArt } from './visuals/characters';
 import { createBattlefieldTextures, drawDesertRoad } from './visuals/battlefield';
 import './style.css';
@@ -21,12 +22,13 @@ import {
 } from './data/enemies';
 
 class GameScene extends Phaser.Scene {
+  private equippedWeapon: WeaponId = 'pistol';
+  private hitBoss?: (damage: number) => void;
   private boss?: Boss;
   private bossWarning?: Phaser.GameObjects.Arc;
   private bossLabel?: Phaser.GameObjects.Text;
   private bossBar?: Phaser.GameObjects.Rectangle;
   private bossBarBackground?: Phaser.GameObjects.Rectangle;
-  private bossSummonElapsed = 0;
   private stageElapsed = 0;
   private encounterIndex = 0;
   private stageFinished = false;
@@ -79,13 +81,14 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.equippedWeapon = 'pistol';
+    this.hitBoss = undefined;
     this.bossWarning?.destroy();
     this.bossWarning = undefined;
     this.boss = undefined;
     this.bossLabel = undefined;
     this.bossBar = undefined;
     this.bossBarBackground = undefined;
-    this.bossSummonElapsed = 0;
     this.stageElapsed = 0;
     this.encounterIndex = 0;
     this.stageFinished = false;
@@ -324,7 +327,7 @@ class GameScene extends Phaser.Scene {
     // Automatic shooting
     if (
       time - this.lastShotTime >=
-      this.weaponStats.fireRate
+      WEAPONS[this.equippedWeapon].interval * this.weaponStats.fireRate / 250
     ) {
       this.fireSquad();
       this.lastShotTime = time;
@@ -351,7 +354,8 @@ class GameScene extends Phaser.Scene {
 
       if (
         projectile.active &&
-        projectile.y < -30
+        (projectile.y < -30 || projectile.startY - projectile.y >= projectile.range ||
+          projectile.x < -30 || projectile.x > this.scale.width + 30)
       ) {
         projectile.destroy();
       }
@@ -535,15 +539,19 @@ class GameScene extends Phaser.Scene {
     this.progressFill.width = 290 * progress;
     this.waveText.setText('STAGE 1 • ' + Math.floor(progress * 100) + '%');
     this.wave = 1 + Math.floor(progress * 4);
-    const supplySchedule: { at: number; id: UpgradeId }[] = [
-      { at: 6000, id: 'heavy-rounds' },
+    const supplySchedule: { at: number; id: 'weapon' | 'add-troop' }[] = [
+      { at: 6000, id: 'weapon' },
       { at: 17000, id: 'add-troop' },
-      { at: 29000, id: 'rapid-fire' },
+      { at: 29000, id: 'weapon' },
       { at: 41000, id: 'add-troop' },
     ];
     for (const supply of supplySchedule) {
       if (previous < supply.at && this.stageElapsed >= supply.at) {
-        this.spawnUpgradeObstacle(supply.id);
+        const weapons: UpgradeId[] = ['machine-gun', 'shotgun', 'rocket-launcher'];
+        const choices = weapons.filter(id => id !== this.equippedWeapon);
+        const reward = supply.id === 'weapon'
+          ? Phaser.Utils.Array.GetRandom(choices) : supply.id;
+        this.spawnUpgradeObstacle(reward);
       }
     }
     while (this.encounterIndex < this.encounters.length &&
@@ -592,20 +600,48 @@ class GameScene extends Phaser.Scene {
     x: number,
     y: number
   ) {
-    const projectile =
-      new Projectile(
-        this,
-        x,
-        y
-      );
-
-    this.projectiles.add(projectile);
-    projectile.setBlendMode(Phaser.BlendModes.ADD);
-    const flash = this.add.circle(x, y, 7, 0xffdc8b, 0.9).setDepth(15);
+    const weapon = WEAPONS[this.equippedWeapon];
+    for (const angle of weapon.angles) {
+      const projectile = new Projectile(this, x, y);
+      this.projectiles.add(projectile);
+      projectile.damage = weapon.damage + this.weaponStats.damage - 1;
+      projectile.splash = weapon.splash;
+      projectile.range = weapon.range;
+      projectile.setTint(weapon.color).setBlendMode(Phaser.BlendModes.ADD);
+      if (weapon.splash) projectile.setDisplaySize(12, 30);
+      projectile.setRotation(angle);
+      projectile.setVelocity(Math.sin(angle) * weapon.speed, -Math.cos(angle) * weapon.speed);
+    }
+    const flash = this.add.circle(x, y, weapon.splash ? 12 : 7, weapon.color, 0.9).setDepth(15);
     this.tweens.add({targets: flash, alpha: 0, scale: 0.2, duration: 70,
       onComplete: () => flash.destroy()});
+  }
 
-    projectile.setVelocityY(-700);
+  private impactProjectile(bullet: Projectile, target: Enemy | UpgradeContainer | Boss) {
+    if (!bullet.active || !target.active || !target.body?.enable) return;
+    const x = bullet.x, y = bullet.y, damage = bullet.damage, radius = bullet.splash;
+    bullet.destroy();
+    const targets: (Enemy | UpgradeContainer | Boss)[] = radius ? [
+      ...this.enemies.getChildren() as Enemy[],
+      ...this.upgradeContainers.getChildren() as UpgradeContainer[],
+      ...(this.boss?.active ? [this.boss] : []),
+    ] : [target];
+    // Snapshot targets before damage: a boss death clears the battlefield.
+    for (const victim of targets) {
+      if (!victim.active || !victim.body?.enable) continue;
+      if (victim !== target && Math.hypot(victim.x - x, victim.y - y) > radius) continue;
+      if (victim instanceof Boss) this.hitBoss?.(damage);
+      else if (victim instanceof UpgradeContainer) {
+        if (victim.takeDamage(damage)) this.destroyUpgradeContainer(victim);
+      } else if (victim.takeDamage(damage)) {
+        this.score += ENEMIES[victim.enemyType].scoreValue;
+        this.enemiesAlive--;
+        this.scoreText.setText('Score: ' + this.score);
+      }
+    }
+    const impact = this.add.circle(x, y, radius || 10, radius ? 0xff914d : 0xffdc83, 0.65).setDepth(15);
+    this.tweens.add({targets: impact, alpha: 0, scale: 1.2, duration: radius ? 280 : 100,
+      onComplete: () => impact.destroy()});
   }
 
   private spawnEnemy(
@@ -650,73 +686,11 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  private handleBulletEnemyCollision:
-    Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-      (bulletObject, enemyObject) => {
-        const bullet =
-          bulletObject as Projectile;
+  private handleBulletEnemyCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+    (bullet, enemy) => this.impactProjectile(bullet as Projectile, enemy as Enemy);
 
-        const enemy =
-          enemyObject as Enemy;
-
-        if (
-          !bullet.active ||
-          !enemy.active
-        ) {
-          return;
-        }
-
-        bullet.destroy();
-        const spark = this.add.circle(enemy.x, enemy.y, 10, 0xffdc83, 0.8).setDepth(15);
-        this.tweens.add({targets: spark, alpha: 0, scale: 1.8, duration: 100,
-          onComplete: () => spark.destroy()});
-
-        const enemyKilled =
-          enemy.takeDamage(
-            this.weaponStats.damage
-          );
-
-        if (enemyKilled) {
-          const definition =
-            ENEMIES[enemy.enemyType];
-
-          this.score +=
-            definition.scoreValue;
-
-          this.scoreText.setText(
-            `Score: ${this.score}`
-          );
-
-          this.enemiesAlive--;
-
-        }
-      };
-
-  private handleBulletContainerCollision:
-    Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-      (bulletObject, containerObject) => {
-
-        const bullet =
-          bulletObject as Projectile;
-
-        if (!(containerObject instanceof UpgradeContainer)) {
-          return;
-        }
-
-        const container = containerObject;
-        if (!bullet.active || !container.active || !container.body?.enable) return;
-
-        bullet.destroy();
-
-        const destroyed =
-          container.takeDamage(this.weaponStats.damage);
-
-        if (destroyed) {
-          this.destroyUpgradeContainer(
-            container
-          );
-        }
-      };
+  private handleBulletContainerCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+    (bullet, container) => this.impactProjectile(bullet as Projectile, container as UpgradeContainer);
 
   private destroyUpgradeContainer(
     container: UpgradeContainer
@@ -805,7 +779,6 @@ class GameScene extends Phaser.Scene {
 
   private beginBossWave() {
     this.enemiesAlive = 0;
-    this.bossSummonElapsed = 0;
     const boss = new Boss(this);
     this.boss = boss;
     this.bossLabel = this.add.text(300, 65, 'IRON COMMANDER — PHASE 1', {
@@ -819,13 +792,17 @@ class GameScene extends Phaser.Scene {
     const overlap = this.physics.add.overlap(boss, this.projectiles, (_boss, object) => {
       const bullet = object as Projectile;
       if (this.isGameOver || !bullet.active || !boss.active || boss.health <= 0) return;
-      bullet.destroy();
+      this.impactProjectile(bullet, boss);
+    });
+    this.hitBoss = (damage: number) => {
+      if (!boss.active || boss.health <= 0 || this.isGameOver) return;
       const wasEnraged = boss.enraged;
-      const killed = boss.takeDamage(this.weaponStats.damage);
+      const killed = boss.takeDamage(damage);
       this.bossBar!.width = 460 * boss.health / boss.maxHealth;
       if (killed) {
         this.bossWarning?.destroy();
         this.bossWarning = undefined;
+        this.hitBoss = undefined;
         overlap.destroy();
         boss.destroy();
         this.boss = undefined;
@@ -841,9 +818,9 @@ class GameScene extends Phaser.Scene {
       } else if (!wasEnraged && boss.enraged) {
         this.bossLabel!.setText('IRON COMMANDER — PHASE 2');
         this.bossBar!.setFillStyle(0xff5252);
-        this.showUpgradeNotification('COMMANDER ENRAGED', 'Faster movement • More reinforcements');
+        this.showUpgradeNotification('COMMANDER ENRAGED', 'Faster movement • Faster attacks');
       }
-    });
+    };
   }
 
   private updateBoss(delta: number) {
@@ -867,17 +844,7 @@ class GameScene extends Phaser.Scene {
         if (hit) this.damageSquad(30);
       }
     }
-    if (this.isGameOver) return;
-    this.bossSummonElapsed += delta;
-    const interval = this.boss.enraged ? 3500 : 5500;
-    if (this.bossSummonElapsed < interval) return;
-    this.bossSummonElapsed = 0;
-    // Limit reinforcements so long fights cannot flood the battlefield.
-    const count = Math.min(this.boss.enraged ? 3 : 2, 8 - this.enemiesAlive);
-    for (let i = 0; i < count; i++) {
-      this.enemiesAlive++;
-      this.spawnEnemy(i === 1 ? 'runner' : 'grunt');
-    }
+
   }
 
   private applyUpgrade(upgradeId: UpgradeId) {
@@ -887,6 +854,14 @@ class GameScene extends Phaser.Scene {
     );
 
     switch (upgradeId) {
+      case 'machine-gun':
+      case 'shotgun':
+      case 'rocket-launcher':
+        this.equippedWeapon = upgradeId;
+        this.lastShotTime = this.time.now;
+        this.updateWeaponStatsText();
+        this.showUpgradeNotification(WEAPONS[upgradeId].name.toUpperCase(), 'Equipped for the whole squad');
+        break;
       case 'rapid-fire':
         this.weaponStats.fireRate =
           Math.max(
@@ -968,8 +943,9 @@ class GameScene extends Phaser.Scene {
     this.squadText.setText(troops > 0 ? 'SQUAD: YOU + ' + troops : 'SQUAD: SOLO — RECRUIT!');
     this.squadText.setColor(troops > 0 ? '#6ee7b7' : '#ff8a80');
     this.weaponStatsText.setText([
-      `Damage: ${this.weaponStats.damage}`,
-      `Fire Rate: ${Math.round(this.weaponStats.fireRate)}ms`,
+      WEAPONS[this.equippedWeapon].name.toUpperCase(),
+      `Damage: ${WEAPONS[this.equippedWeapon].damage + this.weaponStats.damage - 1}`,
+      `Fire Rate: ${Math.round(WEAPONS[this.equippedWeapon].interval * this.weaponStats.fireRate / 250)}ms`,
 
     ]);
   }

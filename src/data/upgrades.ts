@@ -1,7 +1,10 @@
 export type UpgradeId =
   | 'rapid-fire'
   | 'heavy-rounds'
-  | 'add-troop';
+  | 'add-troop'
+  | 'machine-gun'
+  | 'shotgun'
+  | 'rocket-launcher';
 
 export interface UpgradeDefinition {
   id: UpgradeId;
@@ -13,6 +16,9 @@ export interface UpgradeDefinition {
 export const UPGRADES:
   Record<UpgradeId, UpgradeDefinition> = {
 
+  'machine-gun': { id: 'machine-gun', name: 'Machine Gun', cardLabel: 'MACHINE\nGUN', description: 'Fast focused fire' },
+  shotgun: { id: 'shotgun', name: 'Shotgun', cardLabel: 'SHOTGUN', description: 'Three close-range pellets' },
+  'rocket-launcher': { id: 'rocket-launcher', name: 'Rocket Launcher', cardLabel: 'ROCKETS', description: 'Explosive area damage' },
   'rapid-fire': {
     id: 'rapid-fire',
     name: 'Rapid Fire',
