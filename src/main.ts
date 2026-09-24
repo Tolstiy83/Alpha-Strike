@@ -1,3 +1,4 @@
+import { createBattlefieldTextures, drawDesertRoad } from './visuals/battlefield';
 import './style.css';
 import Phaser from 'phaser';
 
@@ -487,21 +488,10 @@ class GameScene extends Phaser.Scene {
   }
 
   private createRoad() {
-    this.add.rectangle(400, 450, 800, 900, 0x182822).setDepth(-20);
-    this.add.rectangle(400, 450, 700, 900, 0x292e38).setDepth(-19);
-    this.add.rectangle(160, 450, 190, 900, 0x26354b).setDepth(-18);
-    this.add.rectangle(640, 450, 190, 900, 0x253e35).setDepth(-18);
-    for (const [x, title] of [[160, 'WEAPONS'], [400, 'COMBAT'], [640, '+1 TROOP']] as const) {
-      this.add.text(x, 275, title, { fontFamily: 'Arial', fontSize: '17px', color: '#d4dfeb',
-        backgroundColor: '#17212c', padding: { x: 8, y: 5 } }).setOrigin(0.5).setDepth(20);
-    }
-    for (const x of [65, 735]) {
-      this.add.rectangle(x, 450, 5, 900, 0xc9b887).setDepth(-18);
-    }
-    for (let y = -120; y < 1020; y += 120) {
-      for (const x of [260, 540]) {
-        this.add.rectangle(x, y, 5, 55, 0x66707b).setDepth(-17);
-      }
+    drawDesertRoad(this);
+    for (const [x, title, color] of [[160, 'WEAPONS', '#ffd27a'], [400, 'HORDE', '#ff9380'], [640, '+1 TROOP', '#83dcff']] as const) {
+      this.add.text(x, 255, title, {fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color,
+        backgroundColor: '#17212c', padding: {x: 12, y: 6}}).setOrigin(0.5).setDepth(30);
     }
     this.add.rectangle(470, 50, 290, 6, 0x414a56).setOrigin(0).setDepth(25);
     this.progressFill = this.add.rectangle(470, 50, 0, 6, 0x6ee7b7).setOrigin(0).setDepth(26);
@@ -593,9 +583,11 @@ class GameScene extends Phaser.Scene {
         y
       );
 
-    this.projectiles.add(
-      projectile
-    );
+    this.projectiles.add(projectile);
+    projectile.setBlendMode(Phaser.BlendModes.ADD);
+    const flash = this.add.circle(x, y, 7, 0xffdc8b, 0.9).setDepth(15);
+    this.tweens.add({targets: flash, alpha: 0, scale: 0.2, duration: 70,
+      onComplete: () => flash.destroy()});
 
     projectile.setVelocityY(-700);
   }
@@ -659,6 +651,9 @@ class GameScene extends Phaser.Scene {
         }
 
         bullet.destroy();
+        const spark = this.add.circle(enemy.x, enemy.y, 10, 0xffdc83, 0.8).setDepth(15);
+        this.tweens.add({targets: spark, alpha: 0, scale: 1.8, duration: 100,
+          onComplete: () => spark.destroy()});
 
         const enemyKilled =
           enemy.takeDamage(
@@ -965,7 +960,10 @@ class GameScene extends Phaser.Scene {
       upgrade.name.toUpperCase(),
       {
         fontFamily: 'Arial',
-        fontSize: '14px',
+        fontSize: '20px',
+        fontStyle: 'bold',
+        stroke: '#18202a',
+        strokeThickness: 4,
         color: '#ffffff',
         align: 'center',
       }
@@ -998,125 +996,9 @@ class GameScene extends Phaser.Scene {
   }
 
   private createTextures() {
-    if (
-      this.textures.exists('boss') &&
-      this.textures.exists('player') &&
-      this.textures.exists('bullet') &&
-      this.textures.exists('enemy') &&
-      this.textures.exists('upgrade-container') &&
-      this.textures.exists('upgrade-card') &&
-      this.textures.exists('troop')
-    ) {
-      return;
-    }
-
-    const graphics = this.make.graphics({
-      x: 0,
-      y: 0,
-    });
-
-    graphics.fillStyle(0x607d8b);
-    graphics.fillRect(0, 18, 150, 50);
-    graphics.fillStyle(0xb0bec5);
-    graphics.fillRect(30, 0, 90, 85);
-    graphics.fillStyle(0xffb74d);
-    graphics.fillRect(52, 25, 46, 30);
-    graphics.fillStyle(0x263238);
-    graphics.fillRect(8, 50, 18, 40);
-    graphics.fillRect(124, 50, 18, 40);
-    graphics.generateTexture('boss', 150, 90);
-    graphics.clear();
-
-    graphics.fillStyle(0x4fc3f7);
-    graphics.fillTriangle(
-      20,
-      0,
-      0,
-      40,
-      40,
-      40
-    );
-    graphics.generateTexture(
-      'player',
-      40,
-      40
-    );
-
-    graphics.clear();
-
-    graphics.fillStyle(0xffeb3b);
-    graphics.fillRect(
-      0,
-      0,
-      6,
-      18
-    );
-    graphics.generateTexture(
-      'bullet',
-      6,
-      18
-    );
-
-    graphics.clear();
-
-    graphics.fillStyle(0xff5252);
-    graphics.fillRect(
-      0,
-      0,
-      36,
-      36
-    );
-    graphics.generateTexture(
-      'enemy',
-      36,
-      36
-    );
-
-    // Upgrade container
-    graphics.clear();
-
-    graphics.fillStyle(0x8d6e63);
-    graphics.fillRect(0, 0, 60, 45);
-
-    graphics.generateTexture(
-      'upgrade-container',
-      60,
-      45
-    );
-
-    // Upgrade card
-    graphics.clear();
-
-    graphics.fillStyle(0x42a5f5);
-    graphics.fillRect(0, 0, 40, 55);
-
-    graphics.generateTexture(
-      'upgrade-card',
-      40,
-      55
-    );
-
-    // Troop
-    graphics.clear();
-
-    graphics.fillStyle(0x66bb6a);
-    graphics.fillTriangle(
-      18,
-      0,
-      0,
-      36,
-      36,
-      36
-    );
-
-    graphics.generateTexture(
-      'troop',
-      36,
-      36
-    );
-
-    graphics.destroy();
+    createBattlefieldTextures(this);
   }
+
 }
 
 const config: Phaser.Types.Core.GameConfig = {
