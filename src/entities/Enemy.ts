@@ -20,7 +20,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         x: number,
         y: number,
         enemyType: EnemyType,
-        stage = 1
+        stage = 1,
+        endlessRound = 0
         ) {
         super(
             scene,
@@ -36,7 +37,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             ENEMIES[enemyType];
 
         this.health =
-            stageDifficulty(stage).health[enemyType];
+            stageDifficulty(stage, endlessRound).health[enemyType];
 
         scene.add.existing(this);
         scene.physics.add.existing(this);

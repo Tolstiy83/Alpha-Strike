@@ -185,3 +185,51 @@ test('difficulty ramps across stages while preserving an approachable first enco
     assert.ok(boss.velocity.y >= 60, 'boss should approach before a long free-fire window');
   }
 });
+
+test('endless entry requires campaign victory and preserves survivors while resetting its score', () => {
+  const early = sceneForStage(2); early.scene.stageFinished = true; early.scene.enterEndless();
+  assert.equal(early.restarts.length, 0);
+  const final = sceneForStage(3); final.scene.enterEndless(); assert.equal(final.restarts.length, 0);
+  final.scene.completeStage(); final.scene.enterEndless(); final.scene.enterEndless();
+  assert.equal(final.restarts.length, 1);
+  assert.deepEqual(final.restarts[0], { stage: 1, endlessRound: 1, weapon: 'rocket-launcher',
+    troops: 0, health: 40, score: 0, stats: { damage: 2, fireRate: 250 } });
+});
+
+test('endless round three loops onward with exactly one bonus and retains survival score', () => {
+  const run = sceneForStage(3); run.scene.endlessRound = 3;
+  run.scene.completeStage(); assert.equal(run.scene.bonusCards.length, 3);
+  run.scene.selectBonus('heal'); run.scene.advanceStage(); run.scene.advanceStage();
+  assert.equal(run.restarts.length, 1); const result = run.restarts[0];
+  assert.equal(result.stage, 1); assert.equal(result.endlessRound, 4); assert.equal(result.score, 8000);
+  assert.equal(result.health, 90); assert.equal(result.stats.damage, 2);
+});
+
+test('personal records persist independently and survive corrupt or unavailable storage', () => {
+  const { readSurvivalBest, saveSurvivalBest } = load('src/data/survival.ts');
+  let data = null;
+  const storage = { getItem: () => data, setItem: (_key, value) => { data = value; } };
+  assert.deepEqual(plain(readSurvivalBest(storage)), { wave: 0, score: 0 });
+  saveSurvivalBest(12, 5000, storage); saveSurvivalBest(3, 6000, storage);
+  assert.deepEqual(plain(readSurvivalBest(storage)), { wave: 12, score: 6000 });
+  saveSurvivalBest(14, 2000, storage);
+  assert.deepEqual(plain(readSurvivalBest(storage)), { wave: 14, score: 6000 });
+  data = '{broken'; assert.equal(readSurvivalBest(storage).score, 0);
+  data = '{"wave":-1,"score":"9999"}'; assert.deepEqual(plain(readSurvivalBest(storage)), { wave: 0, score: 0 });
+  const blocked = { getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } };
+  assert.deepEqual(plain(saveSurvivalBest(7, 700, blocked)), { wave: 7, score: 700 });
+});
+
+test('endless scaling increases durability without unbounded crowd size or movement speed', () => {
+  const { stageDifficulty, encounterFormation } = load('src/data/difficulty.ts');
+  const { nextEndlessRound } = load('src/data/survival.ts');
+  assert.equal(nextEndlessRound({ endlessRound: 100, score: 123 }).endlessRound, 101);
+  assert.equal(nextEndlessRound({ endlessRound: 100, score: 123 }).score, 123);
+  assert.ok(stageDifficulty(1, 10).health.tank > stageDifficulty(3, 1).health.tank);
+  assert.ok(stageDifficulty(1, 1000).speed < 2.1);
+  assert.ok(encounterFormation(1, 5, 1000).length <= 60);
+  const normal = new Boss(bossScene(), 'melee'); const endless = new Boss(bossScene(), 'melee', 5);
+  assert.ok(endless.maxHealth > normal.maxHealth); assert.equal(endless.windupDuration, normal.windupDuration);
+  for (const boss of [normal, endless]) { boss.x = 400; boss.y = 610; boss.updateCombat(16, 400, 680); boss.updateCombat(boss.windupDuration, 400, 680); }
+  assert.ok(endless.recovery < normal.recovery);
+});

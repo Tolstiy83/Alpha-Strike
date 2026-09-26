@@ -11,6 +11,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   private windingUp = false;
   private recovery = 0;
   readonly style: BossStyle;
+  private endlessRound: number;
   attackLane = 0;
   private sweepStart = 0;
   private sweepIndex = 0;
@@ -20,10 +21,11 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
 
   get enraged() { return this.health <= this.maxHealth / 2; }
 
-  constructor(scene: Phaser.Scene, style: BossStyle = 'melee') {
+  constructor(scene: Phaser.Scene, style: BossStyle = 'melee', endlessRound = 0) {
     super(scene, scene.scale.width / 2, 190, 'boss');
     this.style = style;
-    this.maxHealth = BOSS_DIFFICULTY[style].health;
+    this.endlessRound = endlessRound;
+    this.maxHealth = endlessRound > 0 ? Math.ceil(900 * (1 + endlessRound * 0.18)) : BOSS_DIFFICULTY[style].health;
     this.health = this.maxHealth;
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -38,7 +40,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
       this.attackElapsed += delta;
       if (this.attackElapsed >= this.windupDuration) {
         this.windingUp = false;
-        this.recovery = BOSS_DIFFICULTY[this.style].recovery[this.enraged ? 1 : 0];
+        this.recovery = Math.max(200, BOSS_DIFFICULTY[this.style].recovery[this.enraged ? 1 : 0] * Math.max(0.5, 1 - this.endlessRound * 0.04));
         return 'strike';
       }
       return;
@@ -62,7 +64,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
       return 'warning';
     }
     // Approach the squad, then follow sideways to prevent safe side-lane camping.
-    const speed = BOSS_DIFFICULTY[this.style].speed * (this.enraged ? 1.4 : 1);
+    const speed = BOSS_DIFFICULTY[this.style].speed * (this.enraged ? 1.4 : 1) * Math.min(1.4, 1 + this.endlessRound * 0.025);
     this.setVelocity(
       Phaser.Math.Clamp(dx * 1.5, -speed * 1.7, speed * 1.7),
       Math.min(speed, dy * 3)

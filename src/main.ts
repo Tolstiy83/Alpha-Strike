@@ -1,3 +1,4 @@
+import { nextEndlessRound, readSurvivalBest, saveSurvivalBest } from './data/survival';
 import { encounterFormation, stageDifficulty } from './data/difficulty';
 import { STAGES, nextStage, laneBounds, laneForX, type StageCarry, type StageBonus } from './data/campaign';
 import { combatAudio } from './systems/CombatAudio';
@@ -27,6 +28,13 @@ import {
 
 class GameScene extends Phaser.Scene {
   private stage = 1;
+  private endlessRound = 0;
+  private lastBestSave = 0;
+  private bestText?: Phaser.GameObjects.Text;
+  private best = readSurvivalBest();
+  private get runLabel() { return this.endlessRound ? 'ENDLESS ' + this.endlessRound : 'STAGE ' + this.stage; }
+  private get survivalWave() { return this.endlessRound ? (this.endlessRound - 1) * 6 + this.encounterIndex : 0; }
+
   private selectedBonus?: StageBonus;
   private bonusCards: Phaser.GameObjects.Text[] = [];
   private bonusPrompt?: Phaser.GameObjects.Text;
@@ -94,6 +102,11 @@ class GameScene extends Phaser.Scene {
   }
 
   create(carry: StageCarry = {}) {
+    this.endlessRound = carry.endlessRound ?? 0;
+    const savedBest = readSurvivalBest();
+    this.best = { wave: Math.max(this.best.wave, savedBest.wave), score: Math.max(this.best.score, savedBest.score) };
+    this.lastBestSave = 0;
+    this.bestText = undefined;
     this.stage = Phaser.Math.Clamp(carry.stage ?? 1, 1, STAGES.length);
     this.selectedBonus = undefined;
     this.bonusCards = [];
@@ -299,7 +312,7 @@ class GameScene extends Phaser.Scene {
     this.waveText = this.add.text(
       470,
       20,
-      'STAGE ' + this.stage + ' • 0%',
+      this.runLabel + ' • 0%',
       {
         fontFamily: 'Arial',
         fontSize: '20px',
@@ -307,6 +320,9 @@ class GameScene extends Phaser.Scene {
       }
     );
 
+    this.bestText = this.add.text(760, 185, 'BEST WAVE ' + this.best.wave + ' • ' + this.best.score + ' PTS', {
+      fontFamily: 'Arial', fontSize: '14px', color: '#ffe1a3', backgroundColor: '#18222c', padding: { x: 6, y: 4 },
+    }).setOrigin(1, 0).setDepth(30);
     const controlsText = this.add.text(
       this.scale.width / 2,
       this.scale.height - 25,
@@ -338,6 +354,10 @@ class GameScene extends Phaser.Scene {
     const onSpace = (event: KeyboardEvent) => {
       if (!event.repeat) this.advanceStage();
     };
+    const onPageHide = () => this.recordSurvivalBest();
+    window.addEventListener('pagehide', onPageHide);
+    const onEndless = (event: KeyboardEvent) => { if (!event.repeat) this.enterEndless(); };
+    this.input.keyboard!.on('keydown-E', onEndless);
     const onBonus = (event: KeyboardEvent) => {
       if (event.repeat) return;
       const choice = ({ Digit1: 'heal', Digit2: 'troop', Digit3: 'damage',
@@ -348,6 +368,8 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown', onBonus);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.keyboard?.off('keydown-SPACE', onSpace);
+      this.input.keyboard?.off('keydown-E', onEndless);
+      window.removeEventListener('pagehide', onPageHide);
       this.input.keyboard?.off('keydown', onBonus);
     });
   }
@@ -357,6 +379,10 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (this.endlessRound && time - this.lastBestSave >= 1000) {
+      this.recordSurvivalBest();
+      this.lastBestSave = time;
+    }
     this.updateRoad(delta);
     this.updateBoss(delta);
     if (this.isGameOver || this.stageFinished) return;
@@ -494,6 +520,7 @@ class GameScene extends Phaser.Scene {
 
   private gameOver() {
     this.isGameOver = true;
+    this.recordSurvivalBest();
     this.player.setVelocity(0, 0);
     this.player.setAlpha(1);
     for (const troop of this.troopSystem.getTroops()) troop.setAlpha(1);
@@ -530,7 +557,7 @@ class GameScene extends Phaser.Scene {
     this.add.text(
       this.scale.width / 2,
       this.scale.height / 2 + 60,
-      `Score: ${this.score}`,
+      this.endlessRound ? 'Endless score: ' + this.score + '\nWave reached: ' + this.survivalWave : `Score: ${this.score}`,
       {
         fontFamily: 'Arial',
         fontSize: '24px',
@@ -580,7 +607,7 @@ class GameScene extends Phaser.Scene {
     this.stageElapsed = Math.min(55000, this.stageElapsed + delta);
     const progress = this.stageElapsed / 55000;
     this.progressFill.width = 290 * progress;
-    this.waveText.setText('STAGE ' + this.stage + ' • ' + Math.floor(progress * 100) + '%');
+    this.waveText.setText(this.runLabel + ' • ' + Math.floor(progress * 100) + '%');
     this.wave = 1 + Math.floor(progress * 4);
     const supplySchedule: { at: number; id: 'weapon' | 'add-troop' }[] = [
       { at: 6000, id: 'weapon' },
@@ -600,7 +627,8 @@ class GameScene extends Phaser.Scene {
     while (this.encounterIndex < this.encounters.length &&
       this.stageElapsed >= this.encounters[this.encounterIndex]) {
       const index = this.encounterIndex++;
-      for (const spawn of encounterFormation(this.stage, index)) {
+      this.recordSurvivalBest();
+      for (const spawn of encounterFormation(this.stage, index, this.endlessRound)) {
         this.enemiesAlive++;
         this.spawnEnemy(spawn.type, spawn.x, spawn.y);
       }
@@ -610,7 +638,7 @@ class GameScene extends Phaser.Scene {
       this.bossStarted = true;
       this.removeOtherUpgradeChoices();
       this.upgradeCards.clear(true, true);
-      this.waveText.setText('STAGE ' + this.stage + ' • BOSS');
+      this.waveText.setText(this.runLabel + ' • BOSS');
       this.beginBossWave();
     }
   }
@@ -717,7 +745,8 @@ class GameScene extends Phaser.Scene {
       formationX ?? x,
       formationY,
       enemyType,
-      this.stage
+      this.stage,
+      this.endlessRound
     );
 
     this.enemies.add(enemy);
@@ -729,7 +758,7 @@ class GameScene extends Phaser.Scene {
       this.wave * 2;
 
     enemy.setVelocityY(
-      definition.speed * stageDifficulty(this.stage).speed +
+      definition.speed * stageDifficulty(this.stage, this.endlessRound).speed +
       waveSpeedBonus
     );
   }
@@ -764,7 +793,7 @@ class GameScene extends Phaser.Scene {
 
     this.upgradeCards.add(card);
 
-    card.setVelocityY(75);
+    card.setVelocityY(60);
 
   }
 
@@ -827,7 +856,7 @@ class GameScene extends Phaser.Scene {
 
   private beginBossWave() {
     this.enemiesAlive = 0;
-    const boss = new Boss(this, STAGES[this.stage - 1].style);
+    const boss = new Boss(this, STAGES[this.stage - 1].style, this.endlessRound);
     this.boss = boss;
     if (this.stage === 3) this.showUpgradeNotification('FOUNDRY TYRANT', 'Three-lane sweep • Leave the marked lane');
     this.bossLabel = this.add.text(300, 65, STAGES[this.stage - 1].boss + ' — PHASE 1', {
@@ -1071,7 +1100,7 @@ class GameScene extends Phaser.Scene {
     const container = new UpgradeContainer(this,
       this.scale.width * (troopReward ? 0.8 : 0.2), -40, upgradeId);
     this.upgradeContainers.add(container);
-    container.setVelocityY(90);
+    container.setVelocityY(70);
     this.createUpgradeChoiceLabel(container);
   }
 
@@ -1106,14 +1135,28 @@ class GameScene extends Phaser.Scene {
     );
   }
 
+  private recordSurvivalBest() {
+    if (!this.endlessRound) return;
+    const saved = saveSurvivalBest(this.survivalWave, this.score);
+    this.best = { wave: Math.max(this.best.wave, saved.wave), score: Math.max(this.best.score, saved.score) };
+    this.bestText?.setText('BEST WAVE ' + this.best.wave + ' • ' + this.best.score + ' PTS');
+  }
+
+  private enterEndless() {
+    if (!this.stageFinished || this.stage !== STAGES.length || this.endlessRound || this.transitioning) return;
+    this.transitioning = true;
+    this.scene.restart(nextEndlessRound({ stage: this.stage, weapon: this.equippedWeapon,
+      troops: this.troopSystem.getTroopCount(), health: this.playerHealth, score: this.score, stats: { ...this.weaponStats } }));
+  }
+
   private advanceStage() {
     if (this.transitioning) return;
-    if (this.stageFinished && this.stage < STAGES.length) {
+    if (this.stageFinished && (this.stage < STAGES.length || this.endlessRound > 0)) {
       if (!this.selectedBonus) return;
-      const carry = nextStage({ stage: this.stage, weapon: this.equippedWeapon,
+      const carry = nextStage({ stage: this.stage, endlessRound: this.endlessRound, weapon: this.equippedWeapon,
         troops: this.troopSystem.getTroopCount(), health: this.playerHealth,
         score: this.score, stats: this.weaponStats }, this.selectedBonus);
-      if (carry) { this.transitioning = true; this.scene.restart(carry); }
+      if (carry) { this.transitioning = true; this.scene.restart(this.endlessRound ? nextEndlessRound(carry) : carry); }
     } else if (this.isGameOver || this.stageFinished) {
       this.transitioning = true;
       this.scene.restart({});
@@ -1121,7 +1164,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private selectBonus(bonus: StageBonus) {
-    if (!this.stageFinished || this.stage >= STAGES.length || this.transitioning) return;
+    if (!this.stageFinished || (this.stage >= STAGES.length && !this.endlessRound) || this.transitioning) return;
     this.selectedBonus = bonus;
     const choices: StageBonus[] = ['heal', 'troop', 'damage'];
     this.bonusCards.forEach((card, index) => {
@@ -1130,7 +1173,7 @@ class GameScene extends Phaser.Scene {
       card.setColor(selected ? '#ffffff' : '#cbd5e1');
     });
     const descriptions = { heal: 'HEAL', troop: '+1 TROOP', damage: '+1 DAMAGE' };
-    this.bonusPrompt?.setText('Selected: ' + descriptions[bonus] + '\nSPACE: Enter ' + STAGES[this.stage].name);
+    this.bonusPrompt?.setText('Selected: ' + descriptions[bonus] + '\nSPACE: ' + (this.endlessRound ? 'Endless round ' + (this.endlessRound + 1) : 'Enter ' + STAGES[this.stage].name));
   }
 
   private completeStage() {
@@ -1141,17 +1184,18 @@ class GameScene extends Phaser.Scene {
     for (const troop of this.troopSystem.getTroops()) troop.setVelocity(0, 0).setAlpha(1);
     this.removeOtherUpgradeChoices();
     this.upgradeCards.clear(true, true);
-    this.waveText.setText('STAGE ' + this.stage + ' • COMPLETE');
-    const finalStage = this.stage === STAGES.length;
+    this.recordSurvivalBest();
+    this.waveText.setText(this.runLabel + ' • COMPLETE');
+    const finalStage = this.stage === STAGES.length && !this.endlessRound;
     this.add.rectangle(400, 450, 740, 380, 0x101820, 0.98).setDepth(100);
-    this.add.text(400, 305, finalStage ? 'CAMPAIGN CLEAR' : 'STAGE CLEAR', {
+    this.add.text(400, 305, finalStage ? 'CAMPAIGN CLEAR' : this.endlessRound ? 'ROUND CLEAR' : 'STAGE CLEAR', {
       fontFamily: 'Arial', fontSize: '40px', color: '#6ee7b7',
     }).setOrigin(0.5).setDepth(101);
     this.add.text(400, 360, 'Score: ' + this.score + (finalStage ? '\nAll three bosses defeated!' : '\nChoose one bonus • Keep your squad and weapon'), {
       fontFamily: 'Arial', fontSize: '21px', color: '#ffffff', align: 'center',
     }).setOrigin(0.5).setDepth(101);
     if (finalStage) {
-      this.add.text(400, 470, 'SPACE: New campaign', { fontFamily: 'Arial', fontSize: '26px', color: '#ffffff' })
+      this.add.text(400, 480, 'E: Enter endless survival\nKeep your squad and weapon • Score starts at 0\n\nSPACE: New campaign', { fontFamily: 'Arial', fontSize: '21px', color: '#ffffff', align: 'center' })
         .setOrigin(0.5).setDepth(101);
       return;
     }

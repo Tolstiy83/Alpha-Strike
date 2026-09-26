@@ -3,6 +3,7 @@ import type { WeaponId } from './weapons';
 export type StageBonus = 'heal' | 'troop' | 'damage';
 export interface StageCarry {
   stage?: number;
+  endlessRound?: number;
   weapon?: WeaponId;
   troops?: number;
   health?: number;
@@ -18,7 +19,7 @@ export const STAGES = [
 
 export function nextStage(carry: StageCarry, bonus: StageBonus): StageCarry | undefined {
   const stage = carry.stage ?? 1;
-  if (stage >= STAGES.length) return;
+  if (stage >= STAGES.length && !carry.endlessRound) return;
   return {
     ...carry, stage: stage + 1,
     health: Math.min(100, (carry.health ?? 100) + (bonus === 'heal' ? 50 : 0)),

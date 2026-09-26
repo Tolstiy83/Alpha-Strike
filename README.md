@@ -25,13 +25,15 @@ Weapon crates arrive at 6 and 29 seconds; troop barricades arrive at 17 and 41 s
 | Toggle sound | M or the sound button |
 | Choose a stage-clear bonus | Click a card or press 1 / 2 / 3 |
 | Continue after Stage 1 or 2 | Select a bonus, then Space |
+| Enter endless after campaign victory | E |
+| Continue after an endless round | Choose a bonus, then Space |
 | Restart after defeat or campaign completion | Space |
 
 ## Squad and survival
 
 - Start a new campaign with a pistol, two supporting troops, and 100 health.
 - Every soldier fires the equipped weapon; weapon pickups equip the whole squad.
-- Troops follow in a compact formation and reform after a casualty.
+- Troops follow in a compact formation of up to four soldiers per row and reform after a casualty.
 - An enemy crossing the player's row counts as a breach, even if it is in another lane.
 - A breach removes one troop first. With no troops remaining, the player takes damage.
 - Breaches and boss attacks share an 800 ms protection window, shown by blinking characters.
@@ -44,7 +46,7 @@ Base values before any stat modifiers:
 | Weapon | Damage per projectile | Firing interval | Behavior |
 | --- | --- | --- | --- |
 | Pistol | 1 | 450 ms | Starting weapon; single focused shot |
-| Machine gun | 1 | 250 ms | Fast, focused fire |
+| Machine gun | 1 | 210 ms | Fast, focused fire |
 | Shotgun | 2 | 650 ms | Three spread pellets; 430-pixel range |
 | Rocket launcher | 8 | 1,100 ms | Slower projectile; 95-pixel splash radius |
 
@@ -95,6 +97,16 @@ An abandoned factory road with pipes, rusted machinery, and hazard stripes. Six 
 The **Foundry Tyrant** has 900 health and attacks whole lanes. Each three-strike sweep starts in the squad's current lane, then visits the other two lanes in order. The marked area stays fixed during its countdown. A new sweep targets the squad again. Leave the highlighted lane with your entire squad before impact. Windups last 1.4 seconds, dropping to 1.1 seconds below half health.
 
 All three bosses become faster below half health, award 2,000 points on defeat, and **do not summon reinforcements**. Defeating the third boss completes the campaign. Restarting begins a fresh campaign with the pistol, two troops, and no stage-clear bonuses.
+
+## Endless survival
+
+After defeating the third campaign boss, press **E** to enter endless survival, or **Space** to start a new campaign. Your surviving troops, health, weapon, and upgrades carry into endless; its score starts at zero.
+
+Each round runs six encounters and the usual two weapon crates and two troop barricades, then a boss. Environments and boss styles cycle through desert/melee, city/ranged, and industrial/lane sweep. Every cleared round offers the same heal, troop, or damage choice; select one and press Space to continue indefinitely. Defeat returns to a fresh campaign with Space.
+
+Enemy health grows 12% of the Stage 3 baseline per round. Speed and formation size also increase, with caps on movement speed and crowd size. Boss health grows from a 900-health baseline by 18% per round; recovery between strikes shortens while dodge countdowns remain unchanged.
+
+The HUD shows your **best endless wave reached** and **best endless score**, tracked independently and saved in this browser's local storage. Each round contains six waves, so round 2 starts at wave 7. Records save during play and on round clear or defeat. Records persist across reloads; active runs do not. If browser storage is unavailable, gameplay continues with records kept for the current session.
 
 ## Combat feedback and sound
 
@@ -161,7 +173,7 @@ src/
 
 ## Current scope
 
-This is a playable three-stage prototype. Progress lasts for the current run; there is no persistent save system, base building, multiplayer, or touch controls yet. Weapon balance, horde density, and boss difficulty are still being tuned through playtesting. `npm test` runs campaign regression checks for reward selection, carryover, restart behavior, boss timing, and lane sweeps. The suite isolates game logic with Phaser stubs; browser playtesting checks the rendered experience.
+This is a playable three-stage prototype. Progress lasts for the current run; only endless personal records persist; there is no run-resume system, base building, multiplayer, or touch controls yet. Weapon balance, horde density, and boss difficulty are still being tuned through playtesting. `npm test` runs campaign regression checks for reward selection, carryover, restart behavior, boss timing, lane sweeps, endless transitions, scaling, and personal-record storage. The suite isolates game logic with Phaser stubs; browser playtesting checks the rendered experience.
 
 ## License
 
