@@ -193,7 +193,7 @@ test('endless entry requires campaign victory and preserves survivors while rese
   final.scene.completeStage(); final.scene.enterEndless(); final.scene.enterEndless();
   assert.equal(final.restarts.length, 1);
   assert.deepEqual(final.restarts[0], { stage: 1, endlessRound: 1, weapon: 'rocket-launcher',
-    troops: 0, health: 40, score: 0, stats: { damage: 2, fireRate: 250 } });
+    troops: 0, health: 40, score: 0, stats: { damage: 2, fireRate: 250 }, weaponLevels: { pistol: 1 } });
 });
 
 test('endless round three loops onward with exactly one bonus and retains survival score', () => {
@@ -232,4 +232,50 @@ test('endless scaling increases durability without unbounded crowd size or movem
   assert.ok(endless.maxHealth > normal.maxHealth); assert.equal(endless.windupDuration, normal.windupDuration);
   for (const boss of [normal, endless]) { boss.x = 400; boss.y = 610; boss.updateCombat(16, 400, 680); boss.updateCombat(boss.windupDuration, 400, 680); }
   assert.ok(endless.recovery < normal.recovery);
+});
+
+test('weapon pickups unlock, upgrade only the equipped weapon, and cap at level three', () => {
+  const { collectWeapon, weaponDropChoices, weaponRewardLabel } = load('src/data/weapons.ts');
+  const initial = { pistol: 1 };
+  let levels = collectWeapon(initial, 'pistol', 'machine-gun');
+  assert.equal(levels['machine-gun'], 1); assert.equal(initial['machine-gun'], undefined);
+  assert.equal(weaponRewardLabel(levels, 'machine-gun', 'machine-gun'), 'UPGRADE TO LV 2');
+  levels = collectWeapon(levels, 'machine-gun', 'machine-gun');
+  levels = collectWeapon(levels, 'machine-gun', 'shotgun');
+  levels = collectWeapon(levels, 'shotgun', 'machine-gun');
+  assert.equal(levels['machine-gun'], 2, 'switching back preserves earned level');
+  levels = collectWeapon(levels, 'machine-gun', 'machine-gun');
+  levels = collectWeapon(levels, 'machine-gun', 'machine-gun');
+  assert.equal(levels['machine-gun'], 3);
+  assert.ok(!weaponDropChoices(levels, 'machine-gun').includes('machine-gun'));
+  assert.ok(weaponDropChoices(levels, 'shotgun').includes('machine-gun'));
+  assert.equal(weaponRewardLabel(levels, 'shotgun', 'machine-gun'), 'SWITCH • LV 3');
+  assert.equal(weaponRewardLabel(levels, 'shotgun', 'rocket-launcher'), 'NEW WEAPON • LV 1');
+});
+
+test('weapon levels improve their signature behavior without changing base definitions or old shots', () => {
+  const { WEAPONS, weaponProfile } = load('src/data/weapons.ts');
+  for (const id of ['machine-gun', 'shotgun', 'rocket-launcher']) {
+    const first = weaponProfile(id, { [id]: 1 }); const third = weaponProfile(id, { [id]: 3 });
+    assert.equal(first.damage, third.damage);
+    if (id === 'machine-gun') { assert.equal(first.interval, 210); assert.equal(third.interval, 145); }
+    if (id === 'shotgun') { assert.equal(third.angles.length, 3); assert.ok(Math.abs(third.angles[0]) < Math.abs(first.angles[0])); }
+    if (id === 'rocket-launcher') { assert.equal(first.splash, 95); assert.equal(third.splash, 135); }
+    assert.equal(weaponProfile(id, { [id]: 1 }).interval, WEAPONS[id].interval);
+  }
+});
+
+test('earned levels carry into the next campaign stage and endless rounds, then reset on new campaign', () => {
+  for (const [stage, endless] of [[1, 0], [3, 3]]) {
+    const run = sceneForStage(stage); run.scene.endlessRound = endless;
+    run.scene.weaponLevels = { pistol: 1, 'machine-gun': 3, shotgun: 2 };
+    run.scene.completeStage(); run.scene.selectBonus('damage'); run.scene.advanceStage();
+    assert.deepEqual(run.restarts[0].weaponLevels, { pistol: 1, 'machine-gun': 3, shotgun: 2 });
+    assert.notEqual(run.restarts[0].weaponLevels, run.scene.weaponLevels);
+  }
+  const final = sceneForStage(3); final.scene.weaponLevels = { pistol: 1, shotgun: 3 };
+  final.scene.completeStage(); final.scene.enterEndless(); assert.equal(final.restarts[0].weaponLevels.shotgun, 3);
+  const lost = sceneForStage(1); lost.scene.isGameOver = true; lost.scene.weaponLevels = { shotgun: 3 };
+  lost.scene.advanceStage(); assert.deepEqual(lost.restarts, [{}]);
+  assert.deepEqual(plain(new GameScene().weaponLevels), { pistol: 1 });
 });

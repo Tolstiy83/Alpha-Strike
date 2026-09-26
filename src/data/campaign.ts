@@ -1,10 +1,11 @@
-import type { WeaponId } from './weapons';
+import type { WeaponId, WeaponLevels } from './weapons';
 
 export type StageBonus = 'heal' | 'troop' | 'damage';
 export interface StageCarry {
   stage?: number;
   endlessRound?: number;
   weapon?: WeaponId;
+  weaponLevels?: WeaponLevels;
   troops?: number;
   health?: number;
   score?: number;

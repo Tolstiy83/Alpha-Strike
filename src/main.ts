@@ -3,7 +3,7 @@ import { encounterFormation, stageDifficulty } from './data/difficulty';
 import { STAGES, nextStage, laneBounds, laneForX, type StageCarry, type StageBonus } from './data/campaign';
 import { combatAudio } from './systems/CombatAudio';
 import { combatBurst } from './visuals/combat';
-import { WEAPONS, type WeaponId } from './data/weapons';
+import { WEAPONS, weaponProfile, weaponLevel, collectWeapon, weaponRewardLabel, weaponDropChoices, type WeaponId, type WeaponLevels } from './data/weapons';
 import { installCharacterArt } from './visuals/characters';
 import { createBattlefieldTextures, drawDesertRoad } from './visuals/battlefield';
 import './style.css';
@@ -42,6 +42,7 @@ class GameScene extends Phaser.Scene {
   private bossLaneWarning?: Phaser.GameObjects.Rectangle;
   private bossAttackLane?: number;
   private equippedWeapon: WeaponId = 'pistol';
+  private weaponLevels: WeaponLevels = { pistol: 1 };
   private hitBoss?: (damage: number) => void;
   private boss?: Boss;
   private bossWarning?: Phaser.GameObjects.Arc;
@@ -131,6 +132,8 @@ class GameScene extends Phaser.Scene {
       this.clearBossWarning();
     });
     this.equippedWeapon = carry.weapon ?? 'pistol';
+    this.weaponLevels = { pistol: 1, ...carry.weaponLevels };
+    this.weaponLevels[this.equippedWeapon] = Math.max(1, weaponLevel(this.weaponLevels, this.equippedWeapon));
     this.hitBoss = undefined;
     this.clearBossWarning();
     this.boss = undefined;
@@ -239,8 +242,10 @@ class GameScene extends Phaser.Scene {
       '',
       {
         fontFamily: 'Arial',
-        fontSize: '15px',
-        color: '#aaaaaa',
+        fontSize: '14px',
+        color: '#f0f4ff',
+        backgroundColor: '#18222c',
+        padding: { x: 6, y: 2 },
         lineSpacing: 4,
       }
     );
@@ -397,7 +402,7 @@ class GameScene extends Phaser.Scene {
     // Automatic shooting
     if (
       time - this.lastShotTime >=
-      WEAPONS[this.equippedWeapon].interval * this.weaponStats.fireRate / 250
+      weaponProfile(this.equippedWeapon, this.weaponLevels).interval * this.weaponStats.fireRate / 250
     ) {
       this.fireSquad();
       this.lastShotTime = time;
@@ -441,6 +446,10 @@ class GameScene extends Phaser.Scene {
 
       if (card.active) {
         card.update();
+        if (card.upgradeId === 'machine-gun' || card.upgradeId === 'shotgun' || card.upgradeId === 'rocket-launcher') {
+          card.setRewardLabel(UPGRADES[card.upgradeId].cardLabel + '\nLV ' +
+            weaponLevel(collectWeapon(this.weaponLevels, this.equippedWeapon, card.upgradeId), card.upgradeId));
+        }
 
         // Remove missed cards
         if (
@@ -592,8 +601,8 @@ class GameScene extends Phaser.Scene {
       const container = child as UpgradeContainer;
       const label = container.getData('choiceLabel') as Phaser.GameObjects.Text;
       if (label?.active) {
-        label.setPosition(container.x, container.y - 55);
-        label.setText(UPGRADES[container.upgradeId].name.toUpperCase() + '\n' +
+        label.setPosition(container.x, container.y - 80);
+        label.setText(this.rewardTitle(container.upgradeId) + '\n' +
           (container.upgradeId === 'add-troop' ? 'BARRICADE ' : 'ARMORED CRATE ') +
           container.health + '/' + container.maxHealth);
       }
@@ -617,8 +626,7 @@ class GameScene extends Phaser.Scene {
     ];
     for (const supply of supplySchedule) {
       if (previous < supply.at && this.stageElapsed >= supply.at) {
-        const weapons: UpgradeId[] = ['machine-gun', 'shotgun', 'rocket-launcher'];
-        const choices = weapons.filter(id => id !== this.equippedWeapon);
+        const choices = weaponDropChoices(this.weaponLevels, this.equippedWeapon);
         const reward = supply.id === 'weapon'
           ? Phaser.Utils.Array.GetRandom(choices) : supply.id;
         this.spawnUpgradeObstacle(reward);
@@ -671,7 +679,7 @@ class GameScene extends Phaser.Scene {
     x: number,
     y: number
   ) {
-    const weapon = WEAPONS[this.equippedWeapon];
+    const weapon = weaponProfile(this.equippedWeapon, this.weaponLevels);
     for (const angle of weapon.angles) {
       const projectile = new Projectile(this, x, y);
       this.projectiles.add(projectile);
@@ -1000,10 +1008,12 @@ class GameScene extends Phaser.Scene {
       case 'machine-gun':
       case 'shotgun':
       case 'rocket-launcher':
+        this.weaponLevels = collectWeapon(this.weaponLevels, this.equippedWeapon, upgradeId);
         this.equippedWeapon = upgradeId;
         this.lastShotTime = this.time.now;
         this.updateWeaponStatsText();
-        this.showUpgradeNotification(WEAPONS[upgradeId].name.toUpperCase(), 'Equipped for the whole squad');
+        this.showUpgradeNotification(WEAPONS[upgradeId].name.toUpperCase() + ' • LV ' + weaponLevel(this.weaponLevels, upgradeId),
+          'Equipped for the whole squad • Level saved for this run');
         break;
       case 'rapid-fire':
         this.weaponStats.fireRate =
@@ -1086,9 +1096,9 @@ class GameScene extends Phaser.Scene {
     this.squadText.setText(troops > 0 ? 'SQUAD: YOU + ' + troops : 'SQUAD: SOLO — RECRUIT!');
     this.squadText.setColor(troops > 0 ? '#6ee7b7' : '#ff8a80');
     this.weaponStatsText.setText([
-      WEAPONS[this.equippedWeapon].name.toUpperCase(),
+      WEAPONS[this.equippedWeapon].name.toUpperCase() + ' • LV ' + weaponLevel(this.weaponLevels, this.equippedWeapon),
       `Damage: ${WEAPONS[this.equippedWeapon].damage + this.weaponStats.damage - 1}`,
-      `Fire Rate: ${Math.round(WEAPONS[this.equippedWeapon].interval * this.weaponStats.fireRate / 250)}ms`,
+      `Fire Rate: ${Math.round(weaponProfile(this.equippedWeapon, this.weaponLevels).interval * this.weaponStats.fireRate / 250)}ms`,
 
     ]);
   }
@@ -1104,19 +1114,24 @@ class GameScene extends Phaser.Scene {
     this.createUpgradeChoiceLabel(container);
   }
 
+  private rewardTitle(id: UpgradeId) {
+    const title = UPGRADES[id].name.toUpperCase();
+    if (id === 'machine-gun' || id === 'shotgun' || id === 'rocket-launcher') {
+      return title + '\n' + weaponRewardLabel(this.weaponLevels, this.equippedWeapon, id);
+    }
+    return title;
+  }
+
   private createUpgradeChoiceLabel(
     container: UpgradeContainer
   ) {
-    const upgrade =
-      UPGRADES[container.upgradeId];
-
     const label = this.add.text(
       container.x,
-      container.y - 45,
-      upgrade.name.toUpperCase(),
+      container.y - 80,
+      this.rewardTitle(container.upgradeId),
       {
         fontFamily: 'Arial',
-        fontSize: '20px',
+        fontSize: '17px',
         fontStyle: 'bold',
         stroke: '#18202a',
         strokeThickness: 4,
@@ -1145,7 +1160,7 @@ class GameScene extends Phaser.Scene {
   private enterEndless() {
     if (!this.stageFinished || this.stage !== STAGES.length || this.endlessRound || this.transitioning) return;
     this.transitioning = true;
-    this.scene.restart(nextEndlessRound({ stage: this.stage, weapon: this.equippedWeapon,
+    this.scene.restart(nextEndlessRound({ stage: this.stage, weapon: this.equippedWeapon, weaponLevels: { ...this.weaponLevels },
       troops: this.troopSystem.getTroopCount(), health: this.playerHealth, score: this.score, stats: { ...this.weaponStats } }));
   }
 
@@ -1153,7 +1168,7 @@ class GameScene extends Phaser.Scene {
     if (this.transitioning) return;
     if (this.stageFinished && (this.stage < STAGES.length || this.endlessRound > 0)) {
       if (!this.selectedBonus) return;
-      const carry = nextStage({ stage: this.stage, endlessRound: this.endlessRound, weapon: this.equippedWeapon,
+      const carry = nextStage({ stage: this.stage, endlessRound: this.endlessRound, weapon: this.equippedWeapon, weaponLevels: { ...this.weaponLevels },
         troops: this.troopSystem.getTroopCount(), health: this.playerHealth,
         score: this.score, stats: this.weaponStats }, this.selectedBonus);
       if (carry) { this.transitioning = true; this.scene.restart(this.endlessRound ? nextEndlessRound(carry) : carry); }

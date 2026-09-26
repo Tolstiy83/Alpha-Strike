@@ -44,6 +44,8 @@ export class UpgradeCard extends Phaser.Physics.Arcade.Sprite {
       .setDepth(10);
   }
 
+  setRewardLabel(text: string) { this.label.setText(text); }
+
   update() {
     if (!this.active) {
       return;

@@ -14,7 +14,7 @@ The stationary battlefield has three lanes:
 
 Shoot an obstacle until it breaks, then collect the released card. Weapon crates have 24 health and troop barricades have 10; your weapon's damage affects how quickly they break. Rewards are independent: destroying one obstacle does not remove another. Missed obstacles and cards leave the screen.
 
-Weapon crates arrive at 6 and 29 seconds; troop barricades arrive at 17 and 41 seconds. Crates advertise their reward and remaining health. Weapon rewards are randomly selected from the three unlockable weapons, excluding the currently equipped weapon.
+Weapon crates arrive at 6 and 29 seconds; troop barricades arrive at 17 and 41 seconds. Crates advertise their reward and remaining health. Weapon rewards are randomly selected from the three unlockable weapons. Your equipped weapon can appear again until it reaches Level 3; other weapons remain available for switching. Crates show NEW WEAPON, UPGRADE TO LV 2/3, or SWITCH with the saved level.
 
 ## Controls
 
@@ -53,6 +53,18 @@ Base values before any stat modifiers:
 Rockets can damage multiple nearby enemies, obstacles, and the boss. Each projectile retains the damage and behavior it had when fired, even after a weapon switch.
 
 Rapid Fire and Heavy Rounds remain supported in the upgrade definitions, but the current stage schedule offers weapon unlocks and troop cards.
+
+### Weapon levels
+
+A first pickup unlocks a weapon at Level 1. Collecting the equipped weapon again upgrades it, up to Level 3. Switching to an already unlocked weapon restores its earned level without adding a level. Levels carry across stages and into endless mode, then reset with a new campaign. The starting pistol stays at Level 1.
+
+| Weapon | Level 1 | Level 2 | Level 3 |
+| --- | --- | --- | --- |
+| Machine gun | 210 ms between volleys | 175 ms | 145 ms |
+| Shotgun | 0.14-radian spread | 0.105-radian spread | 0.07-radian spread |
+| Rocket launcher | 95-pixel blast radius | 115 pixels | 135 pixels |
+
+Damage bonuses from stage-clear choices remain separate and apply at every weapon level. Projectiles already in flight retain the stats they were fired with.
 
 ## Enemies
 
