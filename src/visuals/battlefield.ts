@@ -51,9 +51,9 @@ export function createBattlefieldTextures(scene: Phaser.Scene) {
   g.destroy();
 }
 
-export function drawDesertRoad(scene: Phaser.Scene, city = false) {
+export function drawDesertRoad(scene: Phaser.Scene, city = false, industrial = false) {
   const g = scene.add.graphics().setDepth(-20);
-  g.fillStyle(city ? 0x777a76 : 0xd4ae76); g.fillRect(0, 0, 800, 900);
+  g.fillStyle(industrial ? 0x555c60 : city ? 0x777a76 : 0xd4ae76); g.fillRect(0, 0, 800, 900);
   for (let i = 0; i < 65; i++) {
     const x = (i * 137) % 800, y = (i * 193) % 900;
     g.fillStyle(i % 2 ? 0xb68b56 : 0xe7c58e, 0.45);
@@ -70,7 +70,7 @@ export function drawDesertRoad(scene: Phaser.Scene, city = false) {
   for (let y = 20; y < 900; y += 95) {
     g.fillStyle(0xe1ddd0,0.7); g.fillRect(398,y,4,30 + y / 60);
   }
-  if (city) {
+  if (city && !industrial) {
     for (let y = 30; y < 900; y += 120) {
       for (const x of [0, 750]) {
         g.fillStyle(0x424953); g.fillRect(x, y, 50, 90);
@@ -78,6 +78,22 @@ export function drawDesertRoad(scene: Phaser.Scene, city = false) {
         g.fillStyle(0x91958e); g.fillRect(x, y, 50, 6);
       }
     }
+  }
+  if (industrial) {
+    for (let y = 25; y < 900; y += 145) {
+      for (const x of [0, 748]) {
+        g.fillStyle(0x292e32); g.fillRect(x, y, 52, 110);
+        g.fillStyle(0x805341); g.fillRect(x + 5, y + 5, 42, 78);
+        g.lineStyle(3, 0x343b3e);
+        for (let line = 12; line < 45; line += 8) g.lineBetween(x + line, y + 8, x + line, y + 78);
+        g.fillStyle(0xcda444); g.fillRect(x, y + 88, 52, 12);
+        g.lineStyle(5, 0x252a2d);
+        for (let stripe = 0; stripe < 45; stripe += 13) g.lineBetween(x + stripe, y + 88, x + stripe + 10, y + 100);
+        g.fillStyle(0x738087); g.fillCircle(x + 26, y + 30, 14);
+        g.fillStyle(0x2b3339); g.fillCircle(x + 26, y + 30, 9);
+      }
+    }
+    g.lineStyle(7, 0x8b969c); g.lineBetween(110, 0, 20, 900); g.lineBetween(690, 0, 780, 900);
   }
   for (let i = 0; i < (city ? 0 : 12); i++) {
     const y = 80 + i * 66, x = i % 2 ? 765 : 30;

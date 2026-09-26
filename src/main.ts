@@ -1,3 +1,4 @@
+import { STAGES, nextStage, laneBounds, laneForX, type StageCarry, type StageBonus } from './data/campaign';
 import { combatAudio } from './systems/CombatAudio';
 import { combatBurst } from './visuals/combat';
 import { WEAPONS, type WeaponId } from './data/weapons';
@@ -23,17 +24,14 @@ import {
   type EnemyType,
 } from './data/enemies';
 
-interface StageCarry {
-  stage?: number;
-  weapon?: WeaponId;
-  troops?: number;
-  health?: number;
-  score?: number;
-  stats?: { fireRate: number; damage: number };
-}
-
 class GameScene extends Phaser.Scene {
   private stage = 1;
+  private selectedBonus?: StageBonus;
+  private bonusCards: Phaser.GameObjects.Text[] = [];
+  private bonusPrompt?: Phaser.GameObjects.Text;
+  private transitioning = false;
+  private bossLaneWarning?: Phaser.GameObjects.Rectangle;
+  private bossAttackLane?: number;
   private equippedWeapon: WeaponId = 'pistol';
   private hitBoss?: (damage: number) => void;
   private boss?: Boss;
@@ -95,7 +93,11 @@ class GameScene extends Phaser.Scene {
   }
 
   create(carry: StageCarry = {}) {
-    this.stage = carry.stage ?? 1;
+    this.stage = Phaser.Math.Clamp(carry.stage ?? 1, 1, STAGES.length);
+    this.selectedBonus = undefined;
+    this.bonusCards = [];
+    this.bonusPrompt = undefined;
+    this.transitioning = false;
     const soundButton = this.add.text(760, 145, '', { fontFamily: 'Arial', fontSize: '16px',
       color: '#ffffff', backgroundColor: '#18222c', padding: { x: 10, y: 8 } })
       .setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
@@ -332,16 +334,20 @@ class GameScene extends Phaser.Scene {
     );
 
 
-    const onSpace = () => {
-      if (this.stageFinished && this.stage === 1) {
-        this.scene.restart({ stage: 2, weapon: this.equippedWeapon,
-          troops: this.troopSystem.getTroopCount(), health: Math.min(100, this.playerHealth + 30),
-          score: this.score, stats: { ...this.weaponStats } });
-      } else if (this.isGameOver || this.stageFinished) this.scene.restart({});
+    const onSpace = (event: KeyboardEvent) => {
+      if (!event.repeat) this.advanceStage();
+    };
+    const onBonus = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+      const choice = ({ Digit1: 'heal', Digit2: 'troop', Digit3: 'damage',
+        Numpad1: 'heal', Numpad2: 'troop', Numpad3: 'damage' } as const)[event.code];
+      if (choice) this.selectBonus(choice);
     };
     this.input.keyboard!.on('keydown-SPACE', onSpace);
+    this.input.keyboard!.on('keydown', onBonus);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.keyboard?.off('keydown-SPACE', onSpace);
+      this.input.keyboard?.off('keydown', onBonus);
     });
   }
 
@@ -352,6 +358,7 @@ class GameScene extends Phaser.Scene {
 
     this.updateRoad(delta);
     this.updateBoss(delta);
+    if (this.isGameOver || this.stageFinished) return;
     this.player.update();
 
     this.troopSystem.update();
@@ -543,7 +550,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private createRoad() {
-    drawDesertRoad(this, this.stage === 2);
+    drawDesertRoad(this, this.stage >= 2, this.stage === 3);
     for (const [x, title, color] of [[160, 'WEAPONS', '#ffd27a'], [400, 'HORDE', '#ff9380'], [640, '+1 TROOP', '#83dcff']] as const) {
       this.add.text(x, 255, title, {fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color,
         backgroundColor: '#17212c', padding: {x: 12, y: 6}}).setOrigin(0.5).setDepth(30);
@@ -592,6 +599,17 @@ class GameScene extends Phaser.Scene {
     while (this.encounterIndex < this.encounters.length &&
       this.stageElapsed >= this.encounters[this.encounterIndex]) {
       const index = this.encounterIndex++;
+      if (this.stage === 3) {
+        // Slow armor columns alternate with short, dense runner bursts.
+        const runnerBurst = index % 2 === 1;
+        const count = runnerBurst ? 15 + index : 12 + index * 2;
+        for (let i = 0; i < count; i++) {
+          this.enemiesAlive++;
+          this.spawnEnemy(runnerBurst ? (i % 4 ? 'runner' : 'grunt') : (i % 4 === 0 ? 'tank' : 'grunt'),
+            335 + (i % 5) * 32, -35 - Math.floor(i / 5) * (runnerBurst ? 26 : 44));
+        }
+        continue;
+      }
       for (let i = 0; i < 12 + index * 3 + (this.stage === 2 ? 3 : 0); i++) {
         this.enemiesAlive++;
         this.spawnEnemy(this.stage === 2 ? (i % 7 === 0 ? 'tank' : i % 3 === 0 ? 'runner' : 'grunt') : index >= 3 && i === 0 ? 'tank' :
@@ -819,9 +837,10 @@ class GameScene extends Phaser.Scene {
 
   private beginBossWave() {
     this.enemiesAlive = 0;
-    const boss = new Boss(this, this.stage === 2);
+    const boss = new Boss(this, STAGES[this.stage - 1].style);
     this.boss = boss;
-    this.bossLabel = this.add.text(300, 65, this.stage === 2 ? 'SIEGE BRUTE — PHASE 1' : 'IRON COMMANDER — PHASE 1', {
+    if (this.stage === 3) this.showUpgradeNotification('FOUNDRY TYRANT', 'Three-lane sweep • Leave the marked lane');
+    this.bossLabel = this.add.text(300, 65, STAGES[this.stage - 1].boss + ' — PHASE 1', {
       fontFamily: 'Arial', fontSize: '18px', color: '#ffcc80',
     }).setDepth(30);
     this.bossBarBackground = this.add.rectangle(300, 100, 460, 16, 0x343444)
@@ -857,14 +876,17 @@ class GameScene extends Phaser.Scene {
         this.scoreText.setText('Score: ' + this.score);
         this.completeStage();
       } else if (!wasEnraged && boss.enraged) {
-        this.bossLabel!.setText(this.stage === 2 ? 'SIEGE BRUTE — PHASE 2' : 'IRON COMMANDER — PHASE 2');
+        this.bossLabel!.setText(STAGES[this.stage - 1].boss + ' — PHASE 2');
         this.bossBar!.setFillStyle(0xff5252);
-        this.showUpgradeNotification(this.stage === 2 ? 'SIEGE BRUTE ENRAGED' : 'COMMANDER ENRAGED', 'Faster movement • Faster attacks');
+        this.showUpgradeNotification(STAGES[this.stage - 1].boss + ' ENRAGED', 'Faster movement • Faster attacks');
       }
     };
   }
 
   private clearBossWarning() {
+    this.bossLaneWarning?.destroy();
+    this.bossLaneWarning = undefined;
+    this.bossAttackLane = undefined;
     this.bossWarning?.destroy();
     this.bossCountdown?.destroy();
     this.bossWarningText?.destroy();
@@ -876,6 +898,7 @@ class GameScene extends Phaser.Scene {
   private updateBoss(delta: number) {
     if (!this.boss?.active) return;
     const action = this.boss.updateCombat(delta, this.player.x, this.player.y);
+    if (this.boss.style === 'sweep') { this.updateLaneAttack(action); return; }
     if (action === 'warning') {
       this.clearBossWarning();
       const x = this.stage === 2 ? this.player.x : this.boss.x;
@@ -907,6 +930,42 @@ class GameScene extends Phaser.Scene {
       const impact = this.add.circle(strikeX, this.player.y, 95, 0xffb45e, 0.7).setDepth(10);
       this.tweens.add({targets: impact, alpha: 0, scale: 1.3, duration: 250,
         onComplete: () => impact.destroy()});
+      this.cameras.main.shake(150, 0.006);
+      if (hit) this.damageSquad(30);
+    }
+  }
+
+  private updateLaneAttack(action: 'warning' | 'strike' | undefined) {
+    const boss = this.boss!;
+    const names = ['LEFT', 'MIDDLE', 'RIGHT'];
+    if (action === 'warning') {
+      this.clearBossWarning();
+      this.bossAttackLane = boss.attackLane;
+      const bounds = laneBounds(boss.attackLane, this.scale.width);
+      this.bossLaneWarning = this.add.rectangle(bounds.center, 570, this.scale.width / 3, 660, 0xff593b, 0.18)
+        .setStrokeStyle(4, 0xffdf8a).setDepth(1.9);
+      this.bossWarningText = this.add.text(bounds.center, 565, '', {
+        fontFamily: 'Arial', fontSize: '20px', fontStyle: 'bold', color: '#ffffff',
+        backgroundColor: '#682617', align: 'center', padding: { x: 8, y: 8 },
+      }).setOrigin(0.5).setDepth(40);
+      combatAudio.warning();
+    }
+    if (this.bossLaneWarning && action !== 'strike') {
+      const progress = boss.attackProgress;
+      this.bossLaneWarning.setFillStyle(0xff593b, 0.18 + progress * 0.3);
+      this.bossWarningText?.setText(names[this.bossAttackLane!] + ' LANE — MOVE!\n' +
+        ((1 - progress) * boss.windupDuration / 1000).toFixed(1) + 's');
+    }
+    if (action === 'strike' && this.bossAttackLane !== undefined) {
+      const lane = this.bossAttackLane;
+      const bounds = laneBounds(lane, this.scale.width);
+      const hit = [this.player, ...this.troopSystem.getTroops()]
+        .some(actor => laneForX(actor.x, this.scale.width) === lane);
+      this.clearBossWarning();
+      const blast = this.add.rectangle(bounds.center, 570, this.scale.width / 3, 660, 0xffb45e, 0.7).setDepth(10);
+      this.tweens.add({ targets: blast, alpha: 0, duration: 280, onComplete: () => blast.destroy() });
+      combatBurst(this, bounds.center, this.player.y, 0xffdf8a, true);
+      combatAudio.strike();
       this.cameras.main.shake(150, 0.006);
       if (hit) this.damageSquad(30);
     }
@@ -1057,19 +1116,68 @@ class GameScene extends Phaser.Scene {
     );
   }
 
+  private advanceStage() {
+    if (this.transitioning) return;
+    if (this.stageFinished && this.stage < STAGES.length) {
+      if (!this.selectedBonus) return;
+      const carry = nextStage({ stage: this.stage, weapon: this.equippedWeapon,
+        troops: this.troopSystem.getTroopCount(), health: this.playerHealth,
+        score: this.score, stats: this.weaponStats }, this.selectedBonus);
+      if (carry) { this.transitioning = true; this.scene.restart(carry); }
+    } else if (this.isGameOver || this.stageFinished) {
+      this.transitioning = true;
+      this.scene.restart({});
+    }
+  }
+
+  private selectBonus(bonus: StageBonus) {
+    if (!this.stageFinished || this.stage >= STAGES.length || this.transitioning) return;
+    this.selectedBonus = bonus;
+    const choices: StageBonus[] = ['heal', 'troop', 'damage'];
+    this.bonusCards.forEach((card, index) => {
+      const selected = choices[index] === bonus;
+      card.setBackgroundColor(selected ? '#236957' : '#263544');
+      card.setColor(selected ? '#ffffff' : '#cbd5e1');
+    });
+    const descriptions = { heal: 'HEAL', troop: '+1 TROOP', damage: '+1 DAMAGE' };
+    this.bonusPrompt?.setText('Selected: ' + descriptions[bonus] + '\nSPACE: Enter ' + STAGES[this.stage].name);
+  }
+
   private completeStage() {
     this.stageFinished = true;
+    this.clearBossWarning();
     this.time.removeAllEvents();
-    this.player.setVelocity(0, 0);
+    this.player.setVelocity(0, 0).setAlpha(1);
+    for (const troop of this.troopSystem.getTroops()) troop.setVelocity(0, 0).setAlpha(1);
     this.removeOtherUpgradeChoices();
     this.upgradeCards.clear(true, true);
     this.waveText.setText('STAGE ' + this.stage + ' • COMPLETE');
-    this.add.rectangle(400, 450, 620, 240, 0x101820, 0.95).setDepth(100);
-    this.add.text(400, 395, this.stage === 1 ? 'STAGE CLEAR' : 'CAMPAIGN CLEAR', {
-      fontFamily: 'Arial', fontSize: '44px', color: '#6ee7b7',
+    const finalStage = this.stage === STAGES.length;
+    this.add.rectangle(400, 450, 740, 380, 0x101820, 0.98).setDepth(100);
+    this.add.text(400, 305, finalStage ? 'CAMPAIGN CLEAR' : 'STAGE CLEAR', {
+      fontFamily: 'Arial', fontSize: '40px', color: '#6ee7b7',
     }).setOrigin(0.5).setDepth(101);
-    this.add.text(400, 465, 'Score: ' + this.score + (this.stage === 1 ? '\n+30 Health • Keep squad & weapon\nSPACE: Enter the ruined city' : '\nBoth bosses defeated!\nSPACE: New campaign'), {
-      fontFamily: 'Arial', fontSize: '23px', color: '#ffffff', align: 'center',
+    this.add.text(400, 360, 'Score: ' + this.score + (finalStage ? '\nAll three bosses defeated!' : '\nChoose one bonus • Keep your squad and weapon'), {
+      fontFamily: 'Arial', fontSize: '21px', color: '#ffffff', align: 'center',
+    }).setOrigin(0.5).setDepth(101);
+    if (finalStage) {
+      this.add.text(400, 470, 'SPACE: New campaign', { fontFamily: 'Arial', fontSize: '26px', color: '#ffffff' })
+        .setOrigin(0.5).setDepth(101);
+      return;
+    }
+    const labels = [
+      '[1] HEAL +50\n' + this.playerHealth + ' → ' + Math.min(100, this.playerHealth + 50) + ' HP',
+      '[2] +1 TROOP\nOne extra soldier',
+      '[3] +1 DAMAGE\nEvery projectile',
+    ];
+    const choices: StageBonus[] = ['heal', 'troop', 'damage'];
+    this.bonusCards = labels.map((label, i) => this.add.text(160 + i * 240, 460, label, {
+      fontFamily: 'Arial', fontSize: '21px', color: '#cbd5e1', align: 'center',
+      backgroundColor: '#263544', fixedWidth: 220, padding: { x: 8, y: 20 },
+    }).setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.selectBonus(choices[i])));
+    this.bonusPrompt = this.add.text(400, 575, 'Click a bonus or press 1, 2, or 3', {
+      fontFamily: 'Arial', fontSize: '22px', color: '#ffe1a3', align: 'center',
     }).setOrigin(0.5).setDepth(101);
   }
 
