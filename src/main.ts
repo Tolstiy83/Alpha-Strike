@@ -1,3 +1,5 @@
+import { combatAudio } from './systems/CombatAudio';
+import { combatBurst } from './visuals/combat';
 import { WEAPONS, type WeaponId } from './data/weapons';
 import { installCharacterArt } from './visuals/characters';
 import { createBattlefieldTextures, drawDesertRoad } from './visuals/battlefield';
@@ -36,6 +38,8 @@ class GameScene extends Phaser.Scene {
   private hitBoss?: (damage: number) => void;
   private boss?: Boss;
   private bossWarning?: Phaser.GameObjects.Arc;
+  private bossCountdown?: Phaser.GameObjects.Arc;
+  private bossWarningText?: Phaser.GameObjects.Text;
   private bossLabel?: Phaser.GameObjects.Text;
   private bossBar?: Phaser.GameObjects.Rectangle;
   private bossBarBackground?: Phaser.GameObjects.Rectangle;
@@ -92,10 +96,27 @@ class GameScene extends Phaser.Scene {
 
   create(carry: StageCarry = {}) {
     this.stage = carry.stage ?? 1;
+    const soundButton = this.add.text(760, 145, '', { fontFamily: 'Arial', fontSize: '16px',
+      color: '#ffffff', backgroundColor: '#18222c', padding: { x: 10, y: 8 } })
+      .setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
+    const updateSoundLabel = () => soundButton.setText(combatAudio.muted ? 'SOUND OFF [M]' : 'SOUND ON [M]');
+    updateSoundLabel();
+    const unlockSound = () => { void combatAudio.unlock(); };
+    const toggleSound = () => { combatAudio.toggle(); unlockSound(); updateSoundLabel(); };
+    soundButton.on('pointerdown', toggleSound);
+    this.input.on('pointerdown', unlockSound);
+    this.input.keyboard?.on('keydown', unlockSound);
+    const onMute = (event: KeyboardEvent) => { if (!event.repeat) toggleSound(); };
+    this.input.keyboard?.on('keydown-M', onMute);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointerdown', unlockSound);
+      this.input.keyboard?.off('keydown', unlockSound);
+      this.input.keyboard?.off('keydown-M', onMute);
+      this.clearBossWarning();
+    });
     this.equippedWeapon = carry.weapon ?? 'pistol';
     this.hitBoss = undefined;
-    this.bossWarning?.destroy();
-    this.bossWarning = undefined;
+    this.clearBossWarning();
     this.boss = undefined;
     this.bossLabel = undefined;
     this.bossBar = undefined;
@@ -470,8 +491,7 @@ class GameScene extends Phaser.Scene {
     for (const troop of this.troopSystem.getTroops()) troop.setAlpha(1);
 
     this.boss?.setVelocity(0, 0);
-    this.bossWarning?.destroy();
-    this.bossWarning = undefined;
+    this.clearBossWarning();
 
     // Stop all Phaser timers
     this.time.removeAllEvents();
@@ -589,6 +609,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private fireSquad() {
+    combatAudio.fire(this.equippedWeapon);
     // Player
     this.fireProjectileFrom(
       this.player.x,
@@ -636,6 +657,9 @@ class GameScene extends Phaser.Scene {
     if (!bullet.active || !target.active || !target.body?.enable) return;
     const x = bullet.x, y = bullet.y, damage = bullet.damage, radius = bullet.splash;
     bullet.destroy();
+    const armored = target instanceof UpgradeContainer || (target instanceof Enemy && target.enemyType === 'tank');
+    combatAudio.impact(armored, radius > 0);
+    combatBurst(this, x, y, armored ? 0xbfeaff : 0xffcf80, radius > 0);
     const targets: (Enemy | UpgradeContainer | Boss)[] = radius ? [
       ...this.enemies.getChildren() as Enemy[],
       ...this.upgradeContainers.getChildren() as UpgradeContainer[],
@@ -649,6 +673,7 @@ class GameScene extends Phaser.Scene {
       else if (victim instanceof UpgradeContainer) {
         if (victim.takeDamage(damage)) this.destroyUpgradeContainer(victim);
       } else if (victim.takeDamage(damage)) {
+        combatBurst(this, victim.x, victim.y, victim.enemyType === 'tank' ? 0xc3acff : 0xc9dfb0, true);
         this.score += ENEMIES[victim.enemyType].scoreValue;
         this.enemiesAlive--;
         this.scoreText.setText('Score: ' + this.score);
@@ -815,8 +840,9 @@ class GameScene extends Phaser.Scene {
       const killed = boss.takeDamage(damage);
       this.bossBar!.width = 460 * boss.health / boss.maxHealth;
       if (killed) {
-        this.bossWarning?.destroy();
-        this.bossWarning = undefined;
+        this.clearBossWarning();
+        combatBurst(this, boss.x, boss.y, 0xffb45e, true);
+        combatAudio.strike();
         this.hitBoss = undefined;
         overlap.destroy();
         boss.destroy();
@@ -833,34 +859,57 @@ class GameScene extends Phaser.Scene {
       } else if (!wasEnraged && boss.enraged) {
         this.bossLabel!.setText(this.stage === 2 ? 'SIEGE BRUTE — PHASE 2' : 'IRON COMMANDER — PHASE 2');
         this.bossBar!.setFillStyle(0xff5252);
-        this.showUpgradeNotification('COMMANDER ENRAGED', 'Faster movement • Faster attacks');
+        this.showUpgradeNotification(this.stage === 2 ? 'SIEGE BRUTE ENRAGED' : 'COMMANDER ENRAGED', 'Faster movement • Faster attacks');
       }
     };
+  }
+
+  private clearBossWarning() {
+    this.bossWarning?.destroy();
+    this.bossCountdown?.destroy();
+    this.bossWarningText?.destroy();
+    this.bossWarning = undefined;
+    this.bossCountdown = undefined;
+    this.bossWarningText = undefined;
   }
 
   private updateBoss(delta: number) {
     if (!this.boss?.active) return;
     const action = this.boss.updateCombat(delta, this.player.x, this.player.y);
     if (action === 'warning') {
-      this.bossWarning?.destroy();
-      this.bossWarning = this.add.circle(this.stage === 2 ? this.player.x : this.boss.x, this.player.y, 95, 0xff493b, 0.25)
-        .setStrokeStyle(4, 0xffbe73).setDepth(1);
-    } else if (action === 'strike') {
-      const warning = this.bossWarning;
-      this.bossWarning = undefined;
-      if (warning) {
-        const hit = Math.abs(this.player.x - warning.x) <= 95 ||
-          this.troopSystem.getTroops().some(troop => Math.abs(troop.x - warning.x) <= 95);
-        const strikeX = warning.x;
-        warning.destroy();
-        const impact = this.add.circle(strikeX, this.player.y, 95, 0xffb45e, 0.7).setDepth(10);
-        this.tweens.add({targets: impact, alpha: 0, scale: 1.3, duration: 250,
-          onComplete: () => impact.destroy()});
-        this.cameras.main.shake(150, 0.006);
-        if (hit) this.damageSquad(30);
-      }
+      this.clearBossWarning();
+      const x = this.stage === 2 ? this.player.x : this.boss.x;
+      // The full circle stays fixed: it represents the actual strike radius.
+      this.bossWarning = this.add.circle(x, this.player.y, 95, 0xff493b, 0.2)
+        .setStrokeStyle(4, 0xffd18c).setDepth(1.9);
+      this.bossCountdown = this.add.circle(x, this.player.y, 95)
+        .setStrokeStyle(4, 0xffffff).setDepth(12);
+      this.bossWarningText = this.add.text(x, this.player.y - 115, '', {
+        fontFamily: 'Arial', fontSize: '19px', fontStyle: 'bold', color: '#ffffff',
+        stroke: '#581b16', strokeThickness: 5, backgroundColor: '#581b16',
+        padding: { x: 8, y: 5 },
+      }).setOrigin(0.5).setDepth(40);
+      combatAudio.warning();
     }
-
+    if (this.bossWarning && action !== 'strike') {
+      const progress = this.boss.attackProgress;
+      this.bossWarning.setFillStyle(0xff493b, 0.18 + progress * 0.28);
+      this.bossCountdown?.setScale(Math.max(0.01, 1 - progress));
+      this.bossWarningText?.setText('DODGE! ' + ((1 - progress) * this.boss.windupDuration / 1000).toFixed(1) + 's');
+    }
+    if (action === 'strike' && this.bossWarning) {
+      const strikeX = this.bossWarning.x;
+      const hit = Math.abs(this.player.x - strikeX) <= 95 ||
+        this.troopSystem.getTroops().some(troop => Math.abs(troop.x - strikeX) <= 95);
+      this.clearBossWarning();
+      combatAudio.strike();
+      combatBurst(this, strikeX, this.player.y, 0xffb45e, true);
+      const impact = this.add.circle(strikeX, this.player.y, 95, 0xffb45e, 0.7).setDepth(10);
+      this.tweens.add({targets: impact, alpha: 0, scale: 1.3, duration: 250,
+        onComplete: () => impact.destroy()});
+      this.cameras.main.shake(150, 0.006);
+      if (hit) this.damageSquad(30);
+    }
   }
 
   private applyUpgrade(upgradeId: UpgradeId) {

@@ -94,10 +94,12 @@ takeDamage(amount: number): boolean {
         return false;
     }
 
+    this.setData('hitUntil', this.scene.time.now + 100);
     this.health -= amount;
 
     if (this.health <= 0) {
         this.isDead = true;
+        this.setData('deathAt', this.scene.time.now);
 
         // Stop the enemy immediately
         this.setVelocity(0, 0);
@@ -112,7 +114,7 @@ takeDamage(amount: number): boolean {
         this.setTint(0xffffff);
 
         this.scene.time.delayedCall(
-        60,
+        180,
         () => {
             if (this.active) {
             this.destroy();

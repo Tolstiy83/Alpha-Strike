@@ -1,261 +1,148 @@
 # Alpha Strike
 
-Alpha Strike is a small top-down survival shooter built with Phaser and TypeScript. You control a player ship at the bottom of the screen, defend against incoming enemies, and collect upgrade cards dropped by defeated upgrade containers to improve your firepower and squad.
+A browser-based squad shooter built with **Phaser 4, TypeScript, and Vite**. Hold your position, steer your squad left and right, and fire automatically into approaching hordes. Choose when to fight, unlock a better weapon, or recruit another soldier.
 
-The game is a wave-based defense loop: survive each wave, eliminate enemies, earn score, and keep your health above zero. Every time a wave clears, the next wave gets harder and spawns more enemies.
+## Gameplay
 
----
+The stationary battlefield has three lanes:
 
-## Features
+| Lane | Targets | Reward |
+| --- | --- | --- |
+| Left | Armored weapon crates | Machine gun, shotgun, or rocket launcher |
+| Middle | Dense enemy formations and bosses | Score and stage completion |
+| Right | Troop barricades | +1 soldier |
 
-- Wave-based survival gameplay
-- Player movement with keyboard controls
-- Auto-firing squad attack from the player and supporting troops
-- Score tracking and persistent health bar
-- Upgrade containers that drop random upgrades
-- Upgrade cards that give permanent or semi-permanent boosts
-- Phaser-based visuals and arcade physics
-- Vite + TypeScript development setup
+Shoot an obstacle until it breaks, then collect the released card. Weapon crates have 24 health and troop barricades have 10; your weapon's damage affects how quickly they break. Rewards are independent: destroying one obstacle does not remove another. Missed obstacles and cards leave the screen.
 
----
+Weapon crates arrive at 6 and 29 seconds; troop barricades arrive at 17 and 41 seconds. Crates advertise their reward and remaining health. Weapon rewards are randomly selected from the three unlockable weapons, excluding the currently equipped weapon.
 
-## How to Play
+## Controls
 
-### Objective
+| Action | Control |
+| --- | --- |
+| Move left / right | Arrow keys or A / D |
+| Shoot | Automatic |
+| Toggle sound | M or the sound button |
+| Continue after Stage 1 | Space |
+| Restart after defeat or campaign completion | Space |
 
-- Survive as long as possible
-- Eliminate incoming enemies before they reach the bottom of the screen
-- Collect upgrade cards to improve your weapon and squad
-- Keep your health above 0 to avoid losing the run
+## Squad and survival
 
-### Controls
+- Start a new campaign with a pistol, two supporting troops, and 100 health.
+- Every soldier fires the equipped weapon; weapon pickups equip the whole squad.
+- Troops follow in a compact formation and reform after a casualty.
+- An enemy crossing the player's row counts as a breach, even if it is in another lane.
+- A breach removes one troop first. With no troops remaining, the player takes damage.
+- Breaches and boss attacks share an 800 ms protection window, shown by blinking characters.
+- Troop pickups rebuild the squad. Health reaching zero ends the run.
 
-- Move left: Left Arrow or A
-- Move right: Right Arrow or D
-- Restart after game over: Space
+## Weapons
 
-### Gameplay Loop
+Base values before any stat modifiers:
 
-1. The player starts with a basic weapon.
-2. Enemies spawn at random x positions and descend toward the player.
-3. Bullets fire automatically from the player and from any allied troops.
-4. If an enemy reaches the bottom of the screen, it damages the player.
-5. Destroying enemies increases the score.
-6. When all enemies in a wave are defeated, the next wave begins.
-7. Defeating upgrade containers drops cards that can be picked up.
-8. Picking up cards applies upgrades such as faster firing or extra troops.
+| Weapon | Damage per projectile | Firing interval | Behavior |
+| --- | --- | --- | --- |
+| Pistol | 1 | 450 ms | Starting weapon; single focused shot |
+| Machine gun | 1 | 250 ms | Fast, focused fire |
+| Shotgun | 2 | 650 ms | Three spread pellets; 430-pixel range |
+| Rocket launcher | 8 | 1,100 ms | Slower projectile; 95-pixel splash radius |
 
----
+Rockets can damage multiple nearby enemies, obstacles, and the boss. Each projectile retains the damage and behavior it had when fired, even after a weapon switch.
 
-## Upgrade System
+Rapid Fire and Heavy Rounds remain supported in the upgrade definitions, but the current stage schedule offers weapon unlocks and troop cards.
 
-The game currently includes two upgrade types:
+## Enemies
 
-### Rapid Fire
+| Type | Health | Base speed | Score | Solo-player breach damage |
+| --- | --- | --- | --- | --- |
+| Grunt | 2 | 60 | 100 | 20 |
+| Runner | 1 | 105 | 125 | 10 |
+| Tank | 6 | 35 | 250 | 35 |
 
-- Upgrade ID: `rapid-fire`
-- Effect: reduces the weapon fire rate by 20% each time it is applied, with a floor cap
-- Description: "Fire Rate +20%"
+Speed is measured in game pixels per second, with a small stage-progress bonus. Runners are smaller and weave side to side; Grunts and Tanks advance straight ahead. Dense formations use compact rows rather than widely scattered spawns.
 
-### Add Troop
+## Two-stage campaign
 
-- Upgrade ID: `add-troop`
-- Effect: adds one troop to the player's squad formation
-- Description: "Soldier joined your squad!"
+Each stage schedules six encounters over a 55-second buildup. Reaching 100% progress does not immediately end the stage: remaining enemies must be cleared before the boss appears.
 
-The random upgrade pool is defined in the data file, and cards are generated from that pool when a container is destroyed.
+### Stage 1: Desert road
 
----
+Six hordes grow from 12 to 27 enemies. Defeat the **Iron Commander**, a 320-health melee boss that advances toward the squad and follows sideways. Its marked strike area gives time to dodge. A hit removes one troop, or deals 30 health damage when the player is alone.
 
-## Project Structure
+### Stage 2: Ruined city
 
-```text
-Alpha-Strike/
-├── index.html
-├── package.json
-├── tsconfig.json
-├── public/
-├── src/
-│   ├── main.ts
-│   ├── style.css
-│   ├── counter.ts
-│   ├── data/
-│   │   └── upgrades.ts
-│   ├── entities/
-│   │   ├── Enemy.ts
-│   │   ├── Player.ts
-│   │   ├── Projectile.ts
-│   │   ├── Troop.ts
-│   │   ├── UpgradeCard.ts
-│   │   └── UpgradeContainer.ts
-│   └── systems/
-│       └── TroopSystems.ts
-└── README.md
-```
+After the first victory, press Space when ready. Troops, equipped weapon, weapon stat modifiers, and score carry over. Recover 30 health, capped at 100; lost troops are not automatically restored.
 
-### Main Files
+The city has larger mixed groups of Grunts, Runners, and Tanks. Its **Siege Brute** has 320 health and stops at range to target the squad's position with delayed ground strikes. Move out of the marked area before impact.
 
-- `src/main.ts`: Core game scene, wave logic, enemy spawning, collisions, UI, and upgrade application
-- `src/data/upgrades.ts`: Upgrade definitions and upgrade pool data
-- `src/entities/Player.ts`: Player movement and input handling
-- `src/entities/Enemy.ts`: Enemy health and death behavior
-- `src/entities/Troop.ts`: Allied troop sprite representation
-- `src/systems/TroopSystems.ts`: Formation and troop positioning logic
-- `src/entities/UpgradeCard.ts`: Upgrade card sprite and label
-- `src/entities/UpgradeContainer.ts`: Breakable upgrade container object
+Both bosses become faster below half health, award 2,000 points on defeat, and **do not summon reinforcements**. Defeating the second boss completes the campaign. Restarting begins a fresh campaign with the pistol and two troops.
 
----
+## Combat feedback and sound
 
-## How the Game Works
+- Grunts use a green tint; smaller amber Runners move with a faster gait; broad purple Tanks use the brute silhouette.
+- Hits flash and recoil the artwork. Defeated enemies briefly fall and fade; armored targets shed bright sparks.
+- Boss attack zones stay fixed while a white ring shrinks and a countdown shows time to dodge. Warning and impact sounds accompany attacks.
+- Synthesized pistol, machine-gun, shotgun, and rocket sounds play once per squad volley. Click or press a key to enable browser audio; use **M** or the sound button to mute. Mute carries across stage transitions and restarts.
 
-### Player and Movement
+## Visuals
 
-The player is a Phaser physics sprite constrained to the world bounds. It responds to left/right movement and moves horizontally at a fixed speed.
+- Angled three-lane road with desert and ruined-city scenery.
+- AI-generated survivor, zombie, and brute artwork, stored locally in `public/art/`.
+- Larger visual sprites layered over the existing Arcade Physics bodies.
+- Ground shadows, subtle sprite sway, muzzle flashes, glowing projectiles, impacts, and rocket explosions.
+- Weapon, health, squad, obstacle durability, stage progress, and boss health displays.
+- Canvas sizing that fits the available browser viewport.
 
-### Troops
+Character movement currently uses procedural sway rather than full frame-based walking animations. The game remains a 2D prototype with a perspective-style presentation.
 
-The troop system creates a formation behind the player. Troops are arranged in rows and columns and follow the player's position. This gives the squad a layered formation that moves with the player while staying within screen bounds.
+## Run locally
 
-### Shooting
-
-The game fires automatically on a timer using the current weapon fire rate. The player fires a projectile from their position, and each troop also fires from its own position.
-
-### Enemies
-
-Enemies are created at random x values above the screen and travel downward toward the bottom. Each enemy has a health value of 1 and can be killed in a single hit. Once they pass the bottom of the screen, they deal damage to the player and are removed.
-
-### Upgrade Containers
-
-Upgrade containers appear during each wave and sit near the center-top area of the screen. They can be destroyed by firing at them. Once destroyed, they spawn a random upgrade card that falls downward.
-
-### Upgrade Cards
-
-When the player touches a card, the matching upgrade is applied immediately. These cards are used to improve the player's build over the course of the run.
-
----
-
-## Wave System
-
-The game runs in waves with increasing difficulty.
-
-- Initial wave count begins at 0
-- Each wave increases the displayed wave number
-- Enemies to spawn scale based on the wave number
-- Enemy speed also increases as the wave increases
-- The wave is considered complete when no enemies remain alive and the wave is active
-- After a short delay, the next wave starts
-
-The game also displays an announcement for each wave and a completion message after success.
-
----
-
-## Game State and UI
-
-The game HUD includes:
-
-- Title text: "ALPHA STRIKE"
-- Score display
-- Health display
-- Health bar
-- Current wave value
-- Short on-screen instructions
-
-The game over screen shows the final score and prompts the player to press Space to restart.
-
----
-
-## Development Setup
-
-### Prerequisites
-
-- Node.js
-- npm
-
-### Install dependencies
+Use a current Node.js release compatible with Vite 8 and npm. Development has been run with Node.js 24.
 
 ```bash
-npm install
-```
-
-### Start the development server
-
-```bash
+npm ci
 npm run dev
 ```
 
-This launches the Vite dev server for local development.
-
-### Build the project
+Open the local URL printed by Vite.
 
 ```bash
 npm run build
-```
-
-This runs TypeScript compilation and then creates a production build using Vite.
-
-### Preview the production build
-
-```bash
 npm run preview
 ```
 
----
+`build` runs TypeScript checking followed by Vite's production build. `preview` serves the production output locally. The Phaser bundle may produce Vite's large-chunk warning; bundle splitting is not yet configured.
 
-## Scripts
+## Project structure
 
-The project defines these scripts from `package.json`:
+```text
+public/art/                 Generated character atlas and art notes
+src/
+  main.ts                   Game scene, encounters, combat, HUD, stage transitions
+  data/
+    enemies.ts              Grunt, Runner, and Tank definitions
+    upgrades.ts             Upgrade names, cards, and definitions
+    weapons.ts              Weapon damage, cadence, range, and firing patterns
+  entities/
+    Boss.ts                 Boss movement, attack timing, phases, and health
+    Enemy.ts                Enemy movement and damage
+    Player.ts               Keyboard input and movement
+    Projectile.ts           Per-shot damage, range, and splash data
+    Troop.ts                Supporting soldier
+    UpgradeCard.ts          Collectible reward and label
+    UpgradeContainer.ts     Destructible reward obstacle
+  systems/
+    TroopSystems.ts          Formation, recruitment, and casualties
+  visuals/
+    battlefield.ts          Procedural scenery and fallback textures
+    characters.ts           Character-art overlays and movement effects
+  style.css                 Page and canvas layout
+```
 
-- `npm run dev` — starts the local Vite dev server
-- `npm run build` — runs TypeScript compilation and production bundle generation
-- `npm run preview` — serves the built app locally
+## Current scope
 
----
-
-## Notes on the Current Implementation
-
-This project is intentionally lightweight and uses generated textures for all major game objects instead of external art assets. The graphics are created procedurally in code, including:
-
-- player triangle
-- bullet rectangle
-- enemy square
-- upgrade container box
-- upgrade card rectangle
-- troop triangle
-
-Physics debug is also enabled in the Phaser config, which makes collision bodies visible while developing.
-
----
-
-## Tech Stack
-
-- TypeScript
-- Vite
-- Phaser 4
-- Arcade physics
-
----
-
-## Future Ideas
-
-Possible enhancements for this project could include:
-
-- more enemy types
-- weapon variation and projectile patterns
-- boss waves
-- sound effects and music
-- better UI polish
-- progression and save system
-- additional upgrade choices and rarity tiers
-- more polished sprite art and animations
-
----
+This is a playable two-stage prototype. Progress lasts for the current run; there is no persistent save system, base building, multiplayer, or touch controls yet. Weapon balance, horde density, and boss difficulty are still being tuned through playtesting. The package currently provides development, build, and preview commands; it does not include a committed automated test suite.
 
 ## License
 
-This project does not currently include a formal license file. If you plan to distribute or publish it, add a license before doing so.
-
----
-
-## Summary
-
-Alpha Strike is a compact arcade survival game with a simple combat loop, progressive difficulty, and an upgrade-driven progression system. It is a strong example of a lightweight Phaser game built in TypeScript and is easy to extend with more content and polish.
+No formal license is currently included in this repository.

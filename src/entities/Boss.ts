@@ -8,6 +8,9 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   private recovery = 0;
   private ranged: boolean;
 
+  get windupDuration() { return this.ranged ? (this.enraged ? 850 : 1200) : (this.enraged ? 650 : 900); }
+  get attackProgress() { return this.windingUp ? Math.min(1, this.attackElapsed / this.windupDuration) : 0; }
+
   get enraged() { return this.health <= this.maxHealth / 2; }
 
   constructor(scene: Phaser.Scene, ranged = false) {
@@ -24,7 +27,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     if (this.windingUp) {
       this.setVelocity(0, 0);
       this.attackElapsed += delta;
-      if (this.attackElapsed >= (this.ranged ? (this.enraged ? 850 : 1200) : (this.enraged ? 650 : 900))) {
+      if (this.attackElapsed >= this.windupDuration) {
         this.windingUp = false;
         this.recovery = this.enraged ? 1200 : 1800;
         return 'strike';
@@ -54,6 +57,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
 
   takeDamage(amount: number) {
     if (!this.active || this.health <= 0) return false;
+    this.setData('hitUntil', this.scene.time.now + 90);
     this.health = Math.max(0, this.health - amount);
     if (this.health === 0) {
       this.setVelocity(0, 0);
