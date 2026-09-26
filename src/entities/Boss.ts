@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { BOSS_DIFFICULTY } from '../data/difficulty';
 import { laneForX } from '../data/campaign';
 
 export type BossStyle = 'melee' | 'ranged' | 'sweep';
@@ -22,7 +23,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   constructor(scene: Phaser.Scene, style: BossStyle = 'melee') {
     super(scene, scene.scale.width / 2, 190, 'boss');
     this.style = style;
-    this.maxHealth = style === 'sweep' ? 400 : 320;
+    this.maxHealth = BOSS_DIFFICULTY[style].health;
     this.health = this.maxHealth;
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -37,7 +38,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
       this.attackElapsed += delta;
       if (this.attackElapsed >= this.windupDuration) {
         this.windingUp = false;
-        this.recovery = this.style === 'sweep' ? (this.enraged ? 500 : 700) : this.enraged ? 1200 : 1800;
+        this.recovery = BOSS_DIFFICULTY[this.style].recovery[this.enraged ? 1 : 0];
         return 'strike';
       }
       return;
@@ -61,7 +62,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
       return 'warning';
     }
     // Approach the squad, then follow sideways to prevent safe side-lane camping.
-    const speed = this.enraged ? 48 : 32;
+    const speed = BOSS_DIFFICULTY[this.style].speed * (this.enraged ? 1.4 : 1);
     this.setVelocity(
       Phaser.Math.Clamp(dx * 1.5, -speed * 1.7, speed * 1.7),
       Math.min(speed, dy * 3)

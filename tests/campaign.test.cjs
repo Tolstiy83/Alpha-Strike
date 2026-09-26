@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..');
 let GameScene;
 class Sprite {
   constructor(scene, x, y) { Object.assign(this, { scene, x, y, active: true, body: { enable: true }, data: {} }); }
-  setImmovable() { return this; } setTint() { return this; }
+  setDisplaySize() { return this; } setImmovable() { return this; } setTint() { return this; }
   setVelocity(x, y) { this.velocity = { x, y }; return this; }
   setData(k, v) { this.data[k] = v; return this; }
 }
@@ -141,5 +141,47 @@ test('lane strikes hit either squad member only in the marked lane and clear the
     assert.equal(scene.bossAttackLane, undefined);
     assert.equal(scene.bossWarningText, undefined);
     scene.updateLaneAttack('strike'); assert.equal(hits, expectedHits, 'no repeated strike after warning is cleared');
+  }
+});
+
+
+test('later-stage enemies actually survive damage that kills opening-stage grunts', () => {
+  const { Enemy } = load('src/entities/Enemy.ts');
+  const scene = bossScene(); scene.time.delayedCall = () => {};
+  const opening = new Enemy(scene, 400, 0, 'grunt', 1);
+  const city = new Enemy(scene, 400, 0, 'grunt', 2);
+  const factory = new Enemy(scene, 400, 0, 'grunt', 3);
+  assert.equal(opening.takeDamage(2), true);
+  assert.equal(city.takeDamage(2), false);
+  assert.equal(factory.takeDamage(2), false);
+  assert.equal(city.takeDamage(1), true);
+  assert.equal(factory.takeDamage(2), false);
+  assert.equal(factory.takeDamage(1), true);
+});
+
+test('difficulty ramps across stages while preserving an approachable first encounter', () => {
+  const { encounterFormation, stageDifficulty } = load('src/data/difficulty.ts');
+  const first = encounterFormation(1, 0);
+  assert.equal(first.length, 12); assert.ok(first.every(enemy => enemy.type === 'grunt'));
+  const totals = [];
+  for (const stage of [1, 2, 3]) {
+    let totalHealth = 0;
+    for (let encounter = 0; encounter < 6; encounter++) {
+      const formation = encounterFormation(stage, encounter);
+      assert.ok(formation.length <= 40, 'keep crowd size bounded');
+      for (const enemy of formation) {
+        assert.ok(enemy.x >= 280 && enemy.x <= 520, 'keep hordes in the middle lane');
+        assert.ok(enemy.y < 0, 'enemies enter from offscreen');
+        totalHealth += stageDifficulty(stage).health[enemy.type];
+      }
+    }
+    totals.push(totalHealth);
+  }
+  assert.ok(totals[1] > totals[0]); assert.ok(totals[2] > totals[1]);
+  assert.ok(stageDifficulty(3).speed > stageDifficulty(2).speed);
+  for (const style of ['melee', 'ranged', 'sweep']) {
+    const boss = new Boss(bossScene(), style);
+    boss.updateCombat(16, 400, 680);
+    assert.ok(boss.velocity.y >= 60, 'boss should approach before a long free-fire window');
   }
 });

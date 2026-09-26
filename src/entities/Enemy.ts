@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { stageDifficulty } from '../data/difficulty';
 import {
   ENEMIES,
   type EnemyType,
@@ -18,7 +19,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         scene: Phaser.Scene,
         x: number,
         y: number,
-        enemyType: EnemyType
+        enemyType: EnemyType,
+        stage = 1
         ) {
         super(
             scene,
@@ -34,7 +36,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             ENEMIES[enemyType];
 
         this.health =
-            definition.health;
+            stageDifficulty(stage).health[enemyType];
 
         scene.add.existing(this);
         scene.physics.add.existing(this);

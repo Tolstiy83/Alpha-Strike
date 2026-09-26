@@ -1,3 +1,4 @@
+import { encounterFormation, stageDifficulty } from './data/difficulty';
 import { STAGES, nextStage, laneBounds, laneForX, type StageCarry, type StageBonus } from './data/campaign';
 import { combatAudio } from './systems/CombatAudio';
 import { combatBurst } from './visuals/combat';
@@ -599,24 +600,12 @@ class GameScene extends Phaser.Scene {
     while (this.encounterIndex < this.encounters.length &&
       this.stageElapsed >= this.encounters[this.encounterIndex]) {
       const index = this.encounterIndex++;
-      if (this.stage === 3) {
-        // Slow armor columns alternate with short, dense runner bursts.
-        const runnerBurst = index % 2 === 1;
-        const count = runnerBurst ? 15 + index : 12 + index * 2;
-        for (let i = 0; i < count; i++) {
-          this.enemiesAlive++;
-          this.spawnEnemy(runnerBurst ? (i % 4 ? 'runner' : 'grunt') : (i % 4 === 0 ? 'tank' : 'grunt'),
-            335 + (i % 5) * 32, -35 - Math.floor(i / 5) * (runnerBurst ? 26 : 44));
-        }
-        continue;
-      }
-      for (let i = 0; i < 12 + index * 3 + (this.stage === 2 ? 3 : 0); i++) {
+      for (const spawn of encounterFormation(this.stage, index)) {
         this.enemiesAlive++;
-        this.spawnEnemy(this.stage === 2 ? (i % 7 === 0 ? 'tank' : i % 3 === 0 ? 'runner' : 'grunt') : index >= 3 && i === 0 ? 'tank' :
-          index >= 1 && i % 5 === 0 ? 'runner' : 'grunt',
-          340 + (i % 5) * 30, -35 - Math.floor(i / 5) * 34);
+        this.spawnEnemy(spawn.type, spawn.x, spawn.y);
       }
     }
+
     if (this.stageElapsed >= 55000 && this.enemiesAlive === 0) {
       this.bossStarted = true;
       this.removeOtherUpgradeChoices();
@@ -727,7 +716,8 @@ class GameScene extends Phaser.Scene {
       this,
       formationX ?? x,
       formationY,
-      enemyType
+      enemyType,
+      this.stage
     );
 
     this.enemies.add(enemy);
@@ -739,7 +729,7 @@ class GameScene extends Phaser.Scene {
       this.wave * 2;
 
     enemy.setVelocityY(
-      definition.speed +
+      definition.speed * stageDifficulty(this.stage).speed +
       waveSpeedBonus
     );
   }

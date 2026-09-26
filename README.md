@@ -62,25 +62,37 @@ Rapid Fire and Heavy Rounds remain supported in the upgrade definitions, but the
 
 Speed is measured in game pixels per second, with a small stage-progress bonus. Runners are smaller and weave side to side; Grunts and Tanks advance straight ahead. Dense formations use compact rows rather than widely scattered spawns.
 
+### Difficulty progression
+
+The enemy table above lists Stage 1 values. Durability and movement scale with the campaign to keep pace with squad upgrades:
+
+| Stage | Grunt / Runner / Tank HP | Base speed multiplier | Enemies per encounter |
+| --- | --- | --- | --- |
+| 1 | 2 / 1 / 6 | 1.0× | 12–32 |
+| 2 | 3 / 2 / 10 | 1.15× | 18–38 |
+| 3 | 5 / 3 / 16 | 1.3× | 22–37 |
+
+Later hordes span seven columns in the middle lane. Bosses approach at 60 / 70 / 80 pixels per second by stage (40% faster when enraged) and recover sooner between attacks. Dodge countdowns, weapon damage, supply timing, and the 800 ms protection window are unchanged.
+
 ## Three-stage campaign
 
 Each stage schedules six encounters over a 55-second buildup. Reaching 100% progress does not immediately end the stage: remaining enemies must be cleared before the boss appears.
 
 ### Stage 1: Desert road
 
-Six hordes grow from 12 to 27 enemies. Defeat the **Iron Commander**, a 320-health melee boss that advances toward the squad and follows sideways. Its marked strike area gives time to dodge. A hit removes one troop, or deals 30 health damage when the player is alone.
+Six hordes grow from 12 to 32 enemies. The first encounter stays all-Grunt; later formations spread wider and include more Runners and Tanks. Defeat the **Iron Commander**, a 420-health melee boss that advances toward the squad and follows sideways. Its marked strike area gives time to dodge. A hit removes one troop, or deals 30 health damage when the player is alone.
 
 ### Stage 2: Ruined city
 
 After each of the first two victories, choose one bonus: **+50 health** (capped at 100), **+1 troop**, or **+1 damage per projectile** for the squad. Click a card or press 1, 2, or 3, then press Space to continue. You can change your selection before continuing. Troops, weapon, damage boosts, and score carry over; there is no automatic healing. Damage bonuses last for the run and also apply after switching weapons.
 
-The city has larger mixed groups of Grunts, Runners, and Tanks. Its **Siege Brute** has 320 health and stops at range to target the squad's position with delayed ground strikes. Move out of the marked area before impact.
+The city has larger mixed groups of Grunts, Runners, and Tanks. Its **Siege Brute** has 650 health and stops at range to target the squad's position with delayed ground strikes. Move out of the marked area before impact.
 
 ### Stage 3: Industrial zone
 
 An abandoned factory road with pipes, rusted machinery, and hazard stripes. Six encounters alternate slower Tank formations with tightly packed Runner bursts.
 
-The **Foundry Tyrant** has 400 health and attacks whole lanes. Each three-strike sweep starts in the squad's current lane, then visits the other two lanes in order. The marked area stays fixed during its countdown. A new sweep targets the squad again. Leave the highlighted lane with your entire squad before impact. Windups last 1.4 seconds, dropping to 1.1 seconds below half health.
+The **Foundry Tyrant** has 900 health and attacks whole lanes. Each three-strike sweep starts in the squad's current lane, then visits the other two lanes in order. The marked area stays fixed during its countdown. A new sweep targets the squad again. Leave the highlighted lane with your entire squad before impact. Windups last 1.4 seconds, dropping to 1.1 seconds below half health.
 
 All three bosses become faster below half health, award 2,000 points on defeat, and **do not summon reinforcements**. Defeating the third boss completes the campaign. Restarting begins a fresh campaign with the pistol, two troops, and no stage-clear bonuses.
 
