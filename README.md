@@ -10,7 +10,7 @@ The stationary battlefield has three lanes:
 | --- | --- | --- |
 | Left | Armored weapon crates | Machine gun, shotgun, or rocket launcher |
 | Middle | Dense enemy formations and bosses | Score and stage completion |
-| Right | Troop barricades | +1 soldier |
+| Right | Troop barricades | +1 soldier |0
 
 Shoot an obstacle until it breaks, then collect the released card. Weapon crates have 24 health and troop barricades have 10; your weapon's damage affects how quickly they break. Rewards are independent: destroying one obstacle does not remove another. Missed obstacles and cards leave the screen.
 
