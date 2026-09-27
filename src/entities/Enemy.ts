@@ -1,3 +1,4 @@
+import { difficultyScale, type Difficulty } from '../data/run';
 import Phaser from 'phaser';
 import { stageDifficulty } from '../data/difficulty';
 import {
@@ -21,7 +22,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         y: number,
         enemyType: EnemyType,
         stage = 1,
-        endlessRound = 0
+        endlessRound = 0,
+        difficulty: Difficulty = 'normal'
         ) {
         super(
             scene,
@@ -37,7 +39,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             ENEMIES[enemyType];
 
         this.health =
-            stageDifficulty(stage, endlessRound).health[enemyType];
+            Math.ceil(stageDifficulty(stage, endlessRound).health[enemyType] * difficultyScale(difficulty).health);
 
         scene.add.existing(this);
         scene.physics.add.existing(this);

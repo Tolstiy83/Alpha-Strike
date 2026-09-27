@@ -1,3 +1,5 @@
+import { freshRun, endlessUnlocked, unlockEndless, difficultyScale, type Difficulty } from './data/run';
+import { showRunMenu } from './ui/runMenu';
 import { nextEndlessRound, readSurvivalBest, saveSurvivalBest } from './data/survival';
 import { encounterFormation, stageDifficulty } from './data/difficulty';
 import { STAGES, nextStage, laneBounds, laneForX, type StageCarry, type StageBonus } from './data/campaign';
@@ -28,6 +30,13 @@ import {
 
 class GameScene extends Phaser.Scene {
   private stage = 1;
+  private difficulty: Difficulty = 'normal';
+  private kills = 0;
+  private bossesDefeated = 0;
+  private closeMenu?: () => void;
+  private menuOpen = false;
+  private pausedAt = 0;
+  private refreshSoundLabel?: () => void;
   private endlessRound = 0;
   private lastBestSave = 0;
   private bestText?: Phaser.GameObjects.Text;
@@ -103,9 +112,13 @@ class GameScene extends Phaser.Scene {
   }
 
   create(carry: StageCarry = {}) {
+    this.menuOpen = false;
+    this.difficulty = carry.difficulty ?? 'normal';
+    this.kills = carry.kills ?? 0;
+    this.bossesDefeated = carry.bossesDefeated ?? 0;
     this.endlessRound = carry.endlessRound ?? 0;
-    const savedBest = readSurvivalBest();
-    this.best = { wave: Math.max(this.best.wave, savedBest.wave), score: Math.max(this.best.score, savedBest.score) };
+    const savedBest = readSurvivalBest(undefined, this.difficulty);
+    this.best = savedBest;
     this.lastBestSave = 0;
     this.bestText = undefined;
     this.stage = Phaser.Math.Clamp(carry.stage ?? 1, 1, STAGES.length);
@@ -118,6 +131,7 @@ class GameScene extends Phaser.Scene {
       .setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
     const updateSoundLabel = () => soundButton.setText(combatAudio.muted ? 'SOUND OFF [M]' : 'SOUND ON [M]');
     updateSoundLabel();
+    this.refreshSoundLabel = updateSoundLabel;
     const unlockSound = () => { void combatAudio.unlock(); };
     const toggleSound = () => { combatAudio.toggle(); unlockSound(); updateSoundLabel(); };
     soundButton.on('pointerdown', toggleSound);
@@ -356,6 +370,11 @@ class GameScene extends Phaser.Scene {
     );
 
 
+    const onPause = (event: KeyboardEvent) => { if (!event.repeat) this.pauseRun(); };
+    this.input.keyboard!.on('keydown-ESC', onPause);
+    this.add.text(470, 215, 'PAUSE [ESC]', { fontFamily: 'Arial', fontSize: '16px', color: '#ffffff', backgroundColor: '#18222c', padding: {x: 8, y: 5} }).setDepth(100).setInteractive({useHandCursor: true}).on('pointerdown', () => this.pauseRun());
+    const onBlur = () => this.pauseRun();
+    window.addEventListener('blur', onBlur);
     const onSpace = (event: KeyboardEvent) => {
       if (!event.repeat) this.advanceStage();
     };
@@ -372,15 +391,19 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-SPACE', onSpace);
     this.input.keyboard!.on('keydown', onBonus);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.closeMenu?.(); this.closeMenu = undefined;
+      this.input.keyboard?.off('keydown-ESC', onPause);
+      window.removeEventListener('blur', onBlur);
       this.input.keyboard?.off('keydown-SPACE', onSpace);
       this.input.keyboard?.off('keydown-E', onEndless);
       window.removeEventListener('pagehide', onPageHide);
       this.input.keyboard?.off('keydown', onBonus);
     });
+    if (!carry.started) this.showStartMenu();
   }
 
   update(time: number, delta: number) {
-    if (this.isGameOver || this.stageFinished) {
+    if (this.menuOpen || this.isGameOver || this.stageFinished) {
       return;
     }
 
@@ -552,38 +575,7 @@ class GameScene extends Phaser.Scene {
     // Remove remaining bullets
     this.projectiles.clear(true, true);
 
-    this.add.text(
-      this.scale.width / 2,
-      this.scale.height / 2,
-      'GAME OVER',
-      {
-        fontFamily: 'Arial',
-        fontSize: '48px',
-        color: '#ff5252',
-      }
-    ).setOrigin(0.5);
-
-    this.add.text(
-      this.scale.width / 2,
-      this.scale.height / 2 + 60,
-      this.endlessRound ? 'Endless score: ' + this.score + '\nWave reached: ' + this.survivalWave : `Score: ${this.score}`,
-      {
-        fontFamily: 'Arial',
-        fontSize: '24px',
-        color: '#ffffff',
-      }
-    ).setOrigin(0.5);
-
-    this.add.text(
-      this.scale.width / 2,
-      this.scale.height / 2 + 110,
-      'Press SPACE to restart',
-      {
-        fontFamily: 'Arial',
-        fontSize: '20px',
-        color: '#aaaaaa',
-      }
-    ).setOrigin(0.5);
+    this.showResults(false);
   }
 
   private createRoad() {
@@ -717,6 +709,7 @@ class GameScene extends Phaser.Scene {
         if (victim.takeDamage(damage)) this.destroyUpgradeContainer(victim);
       } else if (victim.takeDamage(damage)) {
         combatBurst(this, victim.x, victim.y, victim.enemyType === 'tank' ? 0xc3acff : 0xc9dfb0, true);
+        this.kills++;
         this.score += ENEMIES[victim.enemyType].scoreValue;
         this.enemiesAlive--;
         this.scoreText.setText('Score: ' + this.score);
@@ -754,7 +747,8 @@ class GameScene extends Phaser.Scene {
       formationY,
       enemyType,
       this.stage,
-      this.endlessRound
+      this.endlessRound,
+      this.difficulty
     );
 
     this.enemies.add(enemy);
@@ -766,7 +760,7 @@ class GameScene extends Phaser.Scene {
       this.wave * 2;
 
     enemy.setVelocityY(
-      definition.speed * stageDifficulty(this.stage, this.endlessRound).speed +
+      definition.speed * stageDifficulty(this.stage, this.endlessRound).speed * difficultyScale(this.difficulty).speed +
       waveSpeedBonus
     );
   }
@@ -864,7 +858,7 @@ class GameScene extends Phaser.Scene {
 
   private beginBossWave() {
     this.enemiesAlive = 0;
-    const boss = new Boss(this, STAGES[this.stage - 1].style, this.endlessRound);
+    const boss = new Boss(this, STAGES[this.stage - 1].style, this.endlessRound, this.difficulty);
     this.boss = boss;
     if (this.stage === 3) this.showUpgradeNotification('FOUNDRY TYRANT', 'Three-lane sweep • Leave the marked lane');
     this.bossLabel = this.add.text(300, 65, STAGES[this.stage - 1].boss + ' — PHASE 1', {
@@ -899,6 +893,7 @@ class GameScene extends Phaser.Scene {
         this.enemies.clear(true, true);
         this.enemiesAlive = 0;
         this.projectiles.clear(true, true);
+        this.bossesDefeated++;
         this.score += 2000;
         this.scoreText.setText('Score: ' + this.score);
         this.completeStage();
@@ -1150,9 +1145,73 @@ class GameScene extends Phaser.Scene {
     );
   }
 
+  private menu(title: string, detail: string, actions: Parameters<typeof showRunMenu>[2], shortcut?: (key: string) => void) {
+    this.closeMenu?.();
+    if (!this.menuOpen) this.pausedAt = performance.now();
+    this.menuOpen = true;
+    this.input.keyboard!.enabled = false;
+    this.scene.pause();
+    this.closeMenu = showRunMenu(title, detail, actions, shortcut);
+  }
+
+  private leaveMenu() {
+    this.closeMenu?.(); this.closeMenu = undefined;
+    const pausedFor = performance.now() - this.pausedAt;
+    this.squadProtectedUntil += pausedFor;
+    this.lastShotTime += pausedFor;
+    this.menuOpen = false;
+    this.refreshSoundLabel?.();
+    this.input.keyboard!.resetKeys();
+    this.input.keyboard!.enabled = true;
+    this.scene.resume();
+  }
+
+  private startRun(endless: boolean, difficulty = this.difficulty) {
+    if (endless && !endlessUnlocked()) return;
+    void combatAudio.unlock();
+    this.leaveMenu();
+    this.scene.restart(freshRun(difficulty, endless));
+  }
+
+  private showStartMenu(selected: Difficulty = this.difficulty) {
+    const best = readSurvivalBest(undefined, selected);
+    this.menu('ALPHA STRIKE', 'Choose your challenge.\n' +
+      (selected === 'normal' ? 'Normal: the current combat balance.' : 'Hard: +30% enemy health, +12% speed, faster boss attacks.') +
+      '\nEndless best: wave ' + best.wave + ' • ' + best.score + ' points\nEndless starts with a Lv 2 machine gun and 4 troops.\n\nMove: A/D or arrows • Pause: Esc', [
+      { label: 'Difficulty: ' + selected.toUpperCase() + ' — change', run: () => { this.showStartMenu(selected === 'normal' ? 'hard' : 'normal'); } },
+      { label: 'Start campaign', run: () => this.startRun(false, selected) },
+      { label: endlessUnlocked() ? 'Start endless' : 'Endless — beat the campaign to unlock', disabled: !endlessUnlocked(), run: () => this.startRun(true, selected) },
+      { label: combatAudio.muted ? 'Sound: OFF' : 'Sound: ON', run: () => { combatAudio.toggle(); this.showStartMenu(selected); } },
+    ]);
+  }
+
+  private pauseRun() {
+    if (this.menuOpen || this.isGameOver || this.stageFinished) return;
+    this.recordSurvivalBest();
+    const show = () => this.menu('PAUSED', this.runLabel + ' • ' + this.difficulty.toUpperCase(), [
+      { label: 'Resume [Esc]', run: () => this.leaveMenu() },
+      { label: combatAudio.muted ? 'Sound: OFF' : 'Sound: ON', run: () => { combatAudio.toggle(); show(); } },
+      { label: 'Restart run', run: () => this.startRun(this.endlessRound > 0) },
+      { label: 'Main menu', run: () => this.showStartMenu() },
+    ], key => { if (key === 'escape') this.leaveMenu(); });
+    show();
+  }
+
+  private showResults(victory: boolean) {
+    const levels = Object.entries(this.weaponLevels).map(([id, level]) => WEAPONS[id as WeaponId].name + ' Lv ' + level).join(' • ');
+    this.menu(victory ? 'CAMPAIGN CLEAR' : 'RUN OVER',
+      this.difficulty.toUpperCase() + ' • Score: ' + this.score + '\nKills: ' + this.kills + ' • Bosses: ' + this.bossesDefeated +
+      (this.endlessRound ? '\nWave reached: ' + this.survivalWave : '') + '\n\nHighest weapon levels\n' + levels +
+      '\n\nEndless best: wave ' + this.best.wave + ' • ' + this.best.score + ' points', [
+      ...(victory ? [{ label: 'Continue into endless [E]', run: () => { this.leaveMenu(); this.enterEndless(); } }] : []),
+      { label: 'Restart ' + (this.endlessRound ? 'endless' : 'campaign'), run: () => this.startRun(this.endlessRound > 0) },
+      { label: 'Main menu', run: () => this.showStartMenu() },
+    ], key => { if (victory && key === 'e') { this.leaveMenu(); this.enterEndless(); } });
+  }
+
   private recordSurvivalBest() {
     if (!this.endlessRound) return;
-    const saved = saveSurvivalBest(this.survivalWave, this.score);
+    const saved = saveSurvivalBest(this.survivalWave, this.score, undefined, this.difficulty);
     this.best = { wave: Math.max(this.best.wave, saved.wave), score: Math.max(this.best.score, saved.score) };
     this.bestText?.setText('BEST WAVE ' + this.best.wave + ' • ' + this.best.score + ' PTS');
   }
@@ -1160,7 +1219,7 @@ class GameScene extends Phaser.Scene {
   private enterEndless() {
     if (!this.stageFinished || this.stage !== STAGES.length || this.endlessRound || this.transitioning) return;
     this.transitioning = true;
-    this.scene.restart(nextEndlessRound({ stage: this.stage, weapon: this.equippedWeapon, weaponLevels: { ...this.weaponLevels },
+    this.scene.restart(nextEndlessRound({ started: true, difficulty: this.difficulty, kills: this.kills, bossesDefeated: this.bossesDefeated, stage: this.stage, weapon: this.equippedWeapon, weaponLevels: { ...this.weaponLevels },
       troops: this.troopSystem.getTroopCount(), health: this.playerHealth, score: this.score, stats: { ...this.weaponStats } }));
   }
 
@@ -1168,13 +1227,13 @@ class GameScene extends Phaser.Scene {
     if (this.transitioning) return;
     if (this.stageFinished && (this.stage < STAGES.length || this.endlessRound > 0)) {
       if (!this.selectedBonus) return;
-      const carry = nextStage({ stage: this.stage, endlessRound: this.endlessRound, weapon: this.equippedWeapon, weaponLevels: { ...this.weaponLevels },
+      const carry = nextStage({ started: true, difficulty: this.difficulty, kills: this.kills, bossesDefeated: this.bossesDefeated, stage: this.stage, endlessRound: this.endlessRound, weapon: this.equippedWeapon, weaponLevels: { ...this.weaponLevels },
         troops: this.troopSystem.getTroopCount(), health: this.playerHealth,
         score: this.score, stats: this.weaponStats }, this.selectedBonus);
       if (carry) { this.transitioning = true; this.scene.restart(this.endlessRound ? nextEndlessRound(carry) : carry); }
     } else if (this.isGameOver || this.stageFinished) {
       this.transitioning = true;
-      this.scene.restart({});
+      this.scene.restart(freshRun(this.difficulty, this.endlessRound > 0));
     }
   }
 
@@ -1202,6 +1261,7 @@ class GameScene extends Phaser.Scene {
     this.recordSurvivalBest();
     this.waveText.setText(this.runLabel + ' • COMPLETE');
     const finalStage = this.stage === STAGES.length && !this.endlessRound;
+    if (finalStage) { unlockEndless(); this.showResults(true); return; }
     this.add.rectangle(400, 450, 740, 380, 0x101820, 0.98).setDepth(100);
     this.add.text(400, 305, finalStage ? 'CAMPAIGN CLEAR' : this.endlessRound ? 'ROUND CLEAR' : 'STAGE CLEAR', {
       fontFamily: 'Arial', fontSize: '40px', color: '#6ee7b7',
@@ -1209,11 +1269,6 @@ class GameScene extends Phaser.Scene {
     this.add.text(400, 360, 'Score: ' + this.score + (finalStage ? '\nAll three bosses defeated!' : '\nChoose one bonus • Keep your squad and weapon'), {
       fontFamily: 'Arial', fontSize: '21px', color: '#ffffff', align: 'center',
     }).setOrigin(0.5).setDepth(101);
-    if (finalStage) {
-      this.add.text(400, 480, 'E: Enter endless survival\nKeep your squad and weapon • Score starts at 0\n\nSPACE: New campaign', { fontFamily: 'Arial', fontSize: '21px', color: '#ffffff', align: 'center' })
-        .setOrigin(0.5).setDepth(101);
-      return;
-    }
     const labels = [
       '[1] FIRE RATE\n+10% • Any weapon',
       '[2] +1 TROOP\nOne extra soldier',

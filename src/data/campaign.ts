@@ -1,7 +1,12 @@
+import type { Difficulty } from './run';
 import type { WeaponId, WeaponLevels } from './weapons';
 
 export type StageBonus = 'fire-rate' | 'troop' | 'damage';
 export interface StageCarry {
+  started?: boolean;
+  difficulty?: Difficulty;
+  kills?: number;
+  bossesDefeated?: number;
   stage?: number;
   endlessRound?: number;
   weapon?: WeaponId;

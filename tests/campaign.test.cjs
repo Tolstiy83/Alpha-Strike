@@ -95,7 +95,7 @@ function ui(x = 0, y = 0) {
 }
 function sceneForStage(stage) {
   const scene = new GameScene(); const restarts = [];
-  Object.assign(scene, { stage, playerHealth: 40, score: 8000, equippedWeapon: 'rocket-launcher',
+  Object.assign(scene, { menu() {}, stage, playerHealth: 40, score: 8000, equippedWeapon: 'rocket-launcher',
     weaponStats: { damage: 2, fireRate: 250 }, player: ui(), waveText: ui(),
     troopSystem: { getTroops: () => [], getTroopCount: () => 0 },
     time: { removeAllEvents() {} }, upgradeContainers: { getChildren: () => [] }, upgradeCards: { clear() {} },
@@ -116,8 +116,8 @@ test('stage two offers rewards; final victory and defeat start a fresh campaign'
   const second = sceneForStage(2); second.scene.completeStage(); second.scene.selectBonus('troop'); second.scene.advanceStage();
   assert.equal(second.restarts[0].stage, 3); assert.equal(second.restarts[0].troops, 1);
   const final = sceneForStage(3); final.scene.completeStage(); assert.equal(final.scene.bonusCards.length, 0);
-  final.scene.selectBonus('damage'); final.scene.advanceStage(); assert.deepEqual(final.restarts, [{}]);
-  const lost = sceneForStage(2); lost.scene.isGameOver = true; lost.scene.advanceStage(); assert.deepEqual(lost.restarts, [{}]);
+  final.scene.selectBonus('damage'); final.scene.advanceStage(); assert.deepEqual(final.restarts, [{ started: true, difficulty: 'normal' }]);
+  const lost = sceneForStage(2); lost.scene.isGameOver = true; lost.scene.advanceStage(); assert.deepEqual(lost.restarts, [{ started: true, difficulty: 'normal' }]);
 });
 
 
@@ -192,7 +192,7 @@ test('endless entry requires campaign victory and preserves survivors while rese
   const final = sceneForStage(3); final.scene.enterEndless(); assert.equal(final.restarts.length, 0);
   final.scene.completeStage(); final.scene.enterEndless(); final.scene.enterEndless();
   assert.equal(final.restarts.length, 1);
-  assert.deepEqual(final.restarts[0], { stage: 1, endlessRound: 1, weapon: 'rocket-launcher',
+  assert.deepEqual(final.restarts[0], { started: true, difficulty: 'normal', kills: 0, bossesDefeated: 0, stage: 1, endlessRound: 1, weapon: 'rocket-launcher',
     troops: 0, health: 40, score: 0, stats: { damage: 2, fireRate: 250 }, weaponLevels: { pistol: 1 } });
 });
 
@@ -276,7 +276,7 @@ test('earned levels carry into the next campaign stage and endless rounds, then 
   const final = sceneForStage(3); final.scene.weaponLevels = { pistol: 1, shotgun: 3 };
   final.scene.completeStage(); final.scene.enterEndless(); assert.equal(final.restarts[0].weaponLevels.shotgun, 3);
   const lost = sceneForStage(1); lost.scene.isGameOver = true; lost.scene.weaponLevels = { shotgun: 3 };
-  lost.scene.advanceStage(); assert.deepEqual(lost.restarts, [{}]);
+  lost.scene.advanceStage(); assert.deepEqual(lost.restarts, [{ started: true, difficulty: 'normal' }]);
   assert.deepEqual(plain(new GameScene().weaponLevels), { pistol: 1 });
 });
 
@@ -296,4 +296,47 @@ test('fire-rate reward stacks and speeds up every weapon level without restoring
       assert.ok(Math.abs(base / interval - 1.1) < 0.000001);
     }
   }
+});
+
+test('new runs reset combat progress and direct endless has a consistent starter loadout', () => {
+  const { freshRun } = load('src/data/run.ts');
+  assert.deepEqual(plain(freshRun('hard')), { started: true, difficulty: 'hard' });
+  const endless = freshRun('normal', true);
+  assert.equal(endless.endlessRound, 1); assert.equal(endless.health, 100); assert.equal(endless.score, 0);
+  assert.equal(endless.weaponLevels['machine-gun'], 2); assert.equal(endless.troops, 4);
+  endless.weaponLevels['machine-gun'] = 3;
+  assert.equal(freshRun('normal', true).weaponLevels['machine-gun'], 2);
+});
+
+test('hard bosses have more health and shorter recovery without shortening dodge windows', () => {
+  for (const style of ['melee', 'ranged', 'sweep']) {
+    const normal = new Boss(bossScene(), style, 0, 'normal');
+    const hard = new Boss(bossScene(), style, 0, 'hard');
+    assert.ok(hard.maxHealth > normal.maxHealth); assert.equal(hard.windupDuration, normal.windupDuration);
+    for (const boss of [normal, hard]) {
+      boss.x = 400; boss.y = style === 'melee' ? 610 : 400;
+      boss.updateCombat(16, 400, 680); boss.updateCombat(boss.windupDuration, 400, 680);
+    }
+    assert.ok(hard.recovery < normal.recovery);
+  }
+});
+
+test('normal and hard records are separate and paused update cannot advance combat', () => {
+  const { readSurvivalBest, saveSurvivalBest } = load('src/data/survival.ts');
+  const values = new Map(); const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) };
+  saveSurvivalBest(12, 5000, storage, 'normal'); saveSurvivalBest(6, 1000, storage, 'hard');
+  assert.equal(readSurvivalBest(storage, 'normal').score, 5000);
+  assert.equal(readSurvivalBest(storage, 'hard').score, 1000);
+  const scene = new GameScene(); scene.menuOpen = true;
+  scene.update(999999, 16); assert.equal(scene.stageElapsed, 0);
+});
+
+test('difficulty and result counters carry through stages and reset when entering endless', () => {
+  const run = sceneForStage(1); run.scene.difficulty = 'hard'; run.scene.kills = 42; run.scene.bossesDefeated = 1;
+  run.scene.completeStage(); run.scene.selectBonus('damage'); run.scene.advanceStage();
+  assert.equal(run.restarts[0].difficulty, 'hard'); assert.equal(run.restarts[0].kills, 42);
+  assert.equal(run.restarts[0].bossesDefeated, 1); assert.equal(run.restarts[0].started, true);
+  const final = sceneForStage(3); final.scene.kills = 300; final.scene.bossesDefeated = 3;
+  final.scene.completeStage(); final.scene.enterEndless();
+  assert.equal(final.restarts[0].kills, 0); assert.equal(final.restarts[0].bossesDefeated, 0);
 });

@@ -20,3 +20,11 @@ canvas {
   width: min(100vw, 88.8889vh);
   height: auto;
 }
+
+.run-menu { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: #071019de; padding: 20px; }
+.run-menu-panel { box-sizing: border-box; width: min(460px, 100%); max-height: 95vh; overflow: auto; padding: 28px; border: 1px solid #506778; border-radius: 16px; background: #142330; color: #f1f5f9; font-family: Arial, sans-serif; box-shadow: 0 20px 80px #0008; }
+.run-menu-panel h1 { color: #6ee7b7; font-size: 30px; margin: 0 0 16px; }
+.run-menu-panel p { white-space: pre-line; line-height: 1.55; font-size: 16px; margin-bottom: 22px; }
+.run-menu-panel button { display: block; width: 100%; margin: 10px 0; padding: 13px; border: 1px solid #628398; border-radius: 8px; background: #264557; color: white; font-size: 17px; cursor: pointer; }
+.run-menu-panel button:hover, .run-menu-panel button:focus-visible { background: #326b65; outline: 2px solid #6ee7b7; }
+.run-menu-panel button:disabled { opacity: .5; cursor: default; }

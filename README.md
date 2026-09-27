@@ -2,6 +2,16 @@
 
 A browser-based squad shooter built with **Phaser 4, TypeScript, and Vite**. Hold your position, steer your squad left and right, and fire automatically into approaching hordes. Choose when to fight, unlock a better weapon, or recruit another soldier.
 
+## Menus and difficulty
+
+The game waits at a start menu. Choose **Normal** (the existing balance) or **Hard** (+30% enemy/boss health, +12% movement speed, and 15% shorter boss recovery). Warning countdowns stay the same. Start the campaign, or launch endless directly after unlocking it by completing the campaign. Existing saved endless records also grant the unlock.
+
+Direct endless starts with 100 health, four supporting troops, a Level 2 machine gun, and zero score. Continuing from campaign victory instead carries your surviving squad and equipment. Normal and Hard have separate endless records.
+
+Press **Esc** or click **Pause** to freeze the whole fight. Resume, toggle sound, restart the current mode, or return to the main menu. Losing window focus also pauses active combat. Menus support mouse and keyboard focus navigation.
+
+Run results show difficulty, score, kills, bosses defeated, highest earned weapon levels, and endless records. Restart buttons retain the chosen difficulty and mode while resetting run progress.
+
 ## Gameplay
 
 The stationary battlefield has three lanes:
@@ -27,7 +37,8 @@ Weapon crates arrive at 6 and 29 seconds; troop barricades arrive at 17 and 41 s
 | Continue after Stage 1 or 2 | Select a bonus, then Space |
 | Enter endless after campaign victory | E |
 | Continue after an endless round | Choose a bonus, then Space |
-| Restart after defeat or campaign completion | Space |
+| Pause / resume | Esc or the Pause / Resume buttons |
+| Restart or return to menu | Results or pause menu buttons |
 
 ## Squad and survival
 
@@ -112,13 +123,13 @@ All three bosses become faster below half health, award 2,000 points on defeat, 
 
 ## Endless survival
 
-After defeating the third campaign boss, press **E** to enter endless survival, or **Space** to start a new campaign. Your surviving troops, health, weapon, and upgrades carry into endless; its score starts at zero.
+After defeating the third campaign boss, press **E** to enter endless survival, or use the restart/menu buttons. Your surviving troops, health, weapon, and upgrades carry into endless; its score starts at zero.
 
-Each round runs six encounters and the usual two weapon crates and two troop barricades, then a boss. Environments and boss styles cycle through desert/melee, city/ranged, and industrial/lane sweep. Every cleared round offers the same fire-rate, troop, or damage choice; select one and press Space to continue indefinitely. Defeat returns to a fresh campaign with Space.
+Each round runs six encounters and the usual two weapon crates and two troop barricades, then a boss. Environments and boss styles cycle through desert/melee, city/ranged, and industrial/lane sweep. Every cleared round offers the same fire-rate, troop, or damage choice; select one and press Space to continue indefinitely. After defeat, restart endless from the results screen or return to the main menu.
 
 Enemy health grows 12% of the Stage 3 baseline per round. Speed and formation size also increase, with caps on movement speed and crowd size. Boss health grows from a 900-health baseline by 18% per round; recovery between strikes shortens while dodge countdowns remain unchanged.
 
-The HUD shows your **best endless wave reached** and **best endless score**, tracked independently and saved in this browser's local storage. Each round contains six waves, so round 2 starts at wave 7. Records save during play and on round clear or defeat. Records persist across reloads; active runs do not. If browser storage is unavailable, gameplay continues with records kept for the current session.
+The HUD shows your **best endless wave reached** and **best endless score**, tracked independently and saved in this browser's local storage. Each round contains six waves, so round 2 starts at wave 7. Records save during play and on round clear or defeat. Records and the endless unlock persist across reloads; active runs do not. If browser storage is unavailable, gameplay continues with records kept for the current session.
 
 ## Combat feedback and sound
 
@@ -185,7 +196,7 @@ src/
 
 ## Current scope
 
-This is a playable three-stage prototype. Progress lasts for the current run; only endless personal records persist; there is no run-resume system, base building, multiplayer, or touch controls yet. Weapon balance, horde density, and boss difficulty are still being tuned through playtesting. `npm test` runs campaign regression checks for reward selection, carryover, restart behavior, boss timing, lane sweeps, endless transitions, scaling, and personal-record storage. The suite isolates game logic with Phaser stubs; browser playtesting checks the rendered experience.
+This is a playable three-stage prototype. Progress lasts for the current run; only endless personal records persist; there is no run-resume system, base building, multiplayer, or touch controls yet. Weapon balance, horde density, and boss difficulty are still being tuned through playtesting. `npm test` runs campaign regression checks for reward selection, carryover, restart behavior, boss timing, lane sweeps, endless transitions, scaling, and personal-record storage, difficulty separation, fresh-run loadouts, and result-counter carryover. The suite isolates game logic with Phaser stubs; browser playtesting checks the rendered experience.
 
 ## License
 
