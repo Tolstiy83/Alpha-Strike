@@ -98,7 +98,7 @@ Six hordes grow from 12 to 32 enemies. The first encounter stays all-Grunt; late
 
 ### Stage 2: Ruined city
 
-After each of the first two victories, choose one bonus: **+50 health** (capped at 100), **+1 troop**, or **+1 damage per projectile** for the squad. Click a card or press 1, 2, or 3, then press Space to continue. You can change your selection before continuing. Troops, weapon, damage boosts, and score carry over; there is no automatic healing. Damage bonuses last for the run and also apply after switching weapons.
+After each of the first two victories, choose one bonus: **+10% fire rate** for any weapon, **+1 troop**, or **+1 damage per projectile** for the squad. Click a card or press 1, 2, or 3, then press Space to continue. You can change your selection before continuing. Troops, weapon, damage boosts, and score carry over; there is no automatic healing. Damage and fire-rate bonuses last for the run and also apply after switching weapons. Each fire-rate choice multiplies shots per second by 1.1 (dividing the firing interval by 1.1), stacks with weapon levels, and does not heal the squad.
 
 The city has larger mixed groups of Grunts, Runners, and Tanks. Its **Siege Brute** has 650 health and stops at range to target the squad's position with delayed ground strikes. Move out of the marked area before impact.
 
@@ -114,7 +114,7 @@ All three bosses become faster below half health, award 2,000 points on defeat, 
 
 After defeating the third campaign boss, press **E** to enter endless survival, or **Space** to start a new campaign. Your surviving troops, health, weapon, and upgrades carry into endless; its score starts at zero.
 
-Each round runs six encounters and the usual two weapon crates and two troop barricades, then a boss. Environments and boss styles cycle through desert/melee, city/ranged, and industrial/lane sweep. Every cleared round offers the same heal, troop, or damage choice; select one and press Space to continue indefinitely. Defeat returns to a fresh campaign with Space.
+Each round runs six encounters and the usual two weapon crates and two troop barricades, then a boss. Environments and boss styles cycle through desert/melee, city/ranged, and industrial/lane sweep. Every cleared round offers the same fire-rate, troop, or damage choice; select one and press Space to continue indefinitely. Defeat returns to a fresh campaign with Space.
 
 Enemy health grows 12% of the Stage 3 baseline per round. Speed and formation size also increase, with caps on movement speed and crowd size. Boss health grows from a 900-health baseline by 18% per round; recovery between strikes shortens while dodge countdowns remain unchanged.
 

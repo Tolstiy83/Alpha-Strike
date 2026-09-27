@@ -1,6 +1,6 @@
 import type { WeaponId, WeaponLevels } from './weapons';
 
-export type StageBonus = 'heal' | 'troop' | 'damage';
+export type StageBonus = 'fire-rate' | 'troop' | 'damage';
 export interface StageCarry {
   stage?: number;
   endlessRound?: number;
@@ -23,9 +23,9 @@ export function nextStage(carry: StageCarry, bonus: StageBonus): StageCarry | un
   if (stage >= STAGES.length && !carry.endlessRound) return;
   return {
     ...carry, stage: stage + 1,
-    health: Math.min(100, (carry.health ?? 100) + (bonus === 'heal' ? 50 : 0)),
+    health: carry.health ?? 100,
     troops: (carry.troops ?? 2) + (bonus === 'troop' ? 1 : 0),
-    stats: { fireRate: carry.stats?.fireRate ?? 250,
+    stats: { fireRate: (carry.stats?.fireRate ?? 250) / (bonus === 'fire-rate' ? 1.1 : 1),
       damage: (carry.stats?.damage ?? 1) + (bonus === 'damage' ? 1 : 0) },
   };
 }

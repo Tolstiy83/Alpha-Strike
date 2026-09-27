@@ -34,12 +34,12 @@ const plain = value => JSON.parse(JSON.stringify(value));
 test('each reward changes only its benefit, carries equipment, and never mutates the old run', () => {
   const carry = { stage: 1, weapon: 'shotgun', troops: 0, health: 75, score: 5000, stats: { damage: 2, fireRate: 200 } };
   const original = plain(carry);
-  for (const bonus of ['heal', 'troop', 'damage']) {
+  for (const bonus of ['fire-rate', 'troop', 'damage']) {
     const result = nextStage(carry, bonus);
     assert.equal(result.stage, 2); assert.equal(result.weapon, 'shotgun'); assert.equal(result.score, 5000);
-    assert.equal(result.health, bonus === 'heal' ? 100 : 75);
+    assert.equal(result.health, 75);
     assert.equal(result.troops, bonus === 'troop' ? 1 : 0);
-    assert.equal(result.stats.damage, bonus === 'damage' ? 3 : 2); assert.equal(result.stats.fireRate, 200);
+    assert.equal(result.stats.damage, bonus === 'damage' ? 3 : 2); assert.equal(result.stats.fireRate, bonus === 'fire-rate' ? 200 / 1.1 : 200);
     assert.deepEqual(carry, original);
   }
   assert.equal(nextStage({ ...carry, stage: 2 }, 'damage').stage, 3);
@@ -107,7 +107,7 @@ test('bonus selection is required, can change before continuing, and cannot awar
   scene.selectBonus('damage'); assert.equal(scene.selectedBonus, undefined);
   scene.completeStage(); assert.equal(scene.bonusCards.length, 3);
   scene.advanceStage(); assert.equal(restarts.length, 0);
-  scene.selectBonus('heal'); scene.selectBonus('damage'); scene.advanceStage(); scene.advanceStage();
+  scene.selectBonus('fire-rate'); scene.selectBonus('damage'); scene.advanceStage(); scene.advanceStage();
   assert.equal(restarts.length, 1); assert.equal(restarts[0].stage, 2);
   assert.equal(restarts[0].health, 40); assert.equal(restarts[0].stats.damage, 3);
   assert.equal(restarts[0].weapon, 'rocket-launcher'); assert.equal(restarts[0].troops, 0);
@@ -199,10 +199,10 @@ test('endless entry requires campaign victory and preserves survivors while rese
 test('endless round three loops onward with exactly one bonus and retains survival score', () => {
   const run = sceneForStage(3); run.scene.endlessRound = 3;
   run.scene.completeStage(); assert.equal(run.scene.bonusCards.length, 3);
-  run.scene.selectBonus('heal'); run.scene.advanceStage(); run.scene.advanceStage();
+  run.scene.selectBonus('fire-rate'); run.scene.advanceStage(); run.scene.advanceStage();
   assert.equal(run.restarts.length, 1); const result = run.restarts[0];
   assert.equal(result.stage, 1); assert.equal(result.endlessRound, 4); assert.equal(result.score, 8000);
-  assert.equal(result.health, 90); assert.equal(result.stats.damage, 2);
+  assert.equal(result.health, 40); assert.equal(result.stats.fireRate, 250 / 1.1); assert.equal(result.stats.damage, 2);
 });
 
 test('personal records persist independently and survive corrupt or unavailable storage', () => {
@@ -278,4 +278,22 @@ test('earned levels carry into the next campaign stage and endless rounds, then 
   const lost = sceneForStage(1); lost.scene.isGameOver = true; lost.scene.weaponLevels = { shotgun: 3 };
   lost.scene.advanceStage(); assert.deepEqual(lost.restarts, [{}]);
   assert.deepEqual(plain(new GameScene().weaponLevels), { pistol: 1 });
+});
+
+test('fire-rate reward stacks and speeds up every weapon level without restoring health', () => {
+  const { weaponProfile } = load('src/data/weapons.ts');
+  const { nextEndlessRound } = load('src/data/survival.ts');
+  const carry = { stage: 1, health: 30, stats: { fireRate: 250, damage: 1 } };
+  const first = nextStage(carry, 'fire-rate');
+  const second = nextStage(first, 'fire-rate');
+  assert.equal(second.health, 30);
+  assert.equal(second.stats.fireRate, 250 / 1.1 / 1.1);
+  assert.equal(nextEndlessRound(second).stats.fireRate, second.stats.fireRate);
+  for (const id of ['pistol', 'machine-gun', 'shotgun', 'rocket-launcher']) {
+    for (const level of [1, 2, 3]) {
+      const base = weaponProfile(id, { [id]: level }).interval;
+      const interval = base * first.stats.fireRate / 250;
+      assert.ok(Math.abs(base / interval - 1.1) < 0.000001);
+    }
+  }
 });

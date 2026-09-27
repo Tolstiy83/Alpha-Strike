@@ -365,8 +365,8 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-E', onEndless);
     const onBonus = (event: KeyboardEvent) => {
       if (event.repeat) return;
-      const choice = ({ Digit1: 'heal', Digit2: 'troop', Digit3: 'damage',
-        Numpad1: 'heal', Numpad2: 'troop', Numpad3: 'damage' } as const)[event.code];
+      const choice = ({ Digit1: 'fire-rate', Digit2: 'troop', Digit3: 'damage',
+        Numpad1: 'fire-rate', Numpad2: 'troop', Numpad3: 'damage' } as const)[event.code];
       if (choice) this.selectBonus(choice);
     };
     this.input.keyboard!.on('keydown-SPACE', onSpace);
@@ -1181,13 +1181,13 @@ class GameScene extends Phaser.Scene {
   private selectBonus(bonus: StageBonus) {
     if (!this.stageFinished || (this.stage >= STAGES.length && !this.endlessRound) || this.transitioning) return;
     this.selectedBonus = bonus;
-    const choices: StageBonus[] = ['heal', 'troop', 'damage'];
+    const choices: StageBonus[] = ['fire-rate', 'troop', 'damage'];
     this.bonusCards.forEach((card, index) => {
       const selected = choices[index] === bonus;
       card.setBackgroundColor(selected ? '#236957' : '#263544');
       card.setColor(selected ? '#ffffff' : '#cbd5e1');
     });
-    const descriptions = { heal: 'HEAL', troop: '+1 TROOP', damage: '+1 DAMAGE' };
+    const descriptions = { 'fire-rate': '+10% FIRE RATE', troop: '+1 TROOP', damage: '+1 DAMAGE' };
     this.bonusPrompt?.setText('Selected: ' + descriptions[bonus] + '\nSPACE: ' + (this.endlessRound ? 'Endless round ' + (this.endlessRound + 1) : 'Enter ' + STAGES[this.stage].name));
   }
 
@@ -1215,11 +1215,11 @@ class GameScene extends Phaser.Scene {
       return;
     }
     const labels = [
-      '[1] HEAL +50\n' + this.playerHealth + ' → ' + Math.min(100, this.playerHealth + 50) + ' HP',
+      '[1] FIRE RATE\n+10% • Any weapon',
       '[2] +1 TROOP\nOne extra soldier',
       '[3] +1 DAMAGE\nEvery projectile',
     ];
-    const choices: StageBonus[] = ['heal', 'troop', 'damage'];
+    const choices: StageBonus[] = ['fire-rate', 'troop', 'damage'];
     this.bonusCards = labels.map((label, i) => this.add.text(160 + i * 240, 460, label, {
       fontFamily: 'Arial', fontSize: '21px', color: '#cbd5e1', align: 'center',
       backgroundColor: '#263544', fixedWidth: 220, padding: { x: 8, y: 20 },
