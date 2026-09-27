@@ -1,3 +1,4 @@
+import { createWeaponTextures, weaponMuzzle } from './visuals/weapons';
 import { freshRun, endlessUnlocked, unlockEndless, difficultyScale, type Difficulty } from './data/run';
 import { showRunMenu } from './ui/runMenu';
 import { nextEndlessRound, readSurvivalBest, saveSurvivalBest } from './data/survival';
@@ -178,7 +179,8 @@ class GameScene extends Phaser.Scene {
     if (carry.stats) this.weaponStats = { ...carry.stats };
     this.createTextures();
     this.createRoad();
-    installCharacterArt(this);
+    createWeaponTextures(this);
+    installCharacterArt(this, () => ({ id: this.equippedWeapon, level: weaponLevel(this.weaponLevels, this.equippedWeapon) }));
 
     // -----------------------
     // Player
@@ -591,6 +593,8 @@ class GameScene extends Phaser.Scene {
   private updateRoad(delta: number) {
     for (const child of [...this.upgradeContainers.getChildren()]) {
       const container = child as UpgradeContainer;
+      const icon = container.getData('weaponIcon') as Phaser.GameObjects.Image | undefined;
+      icon?.setPosition(container.x, container.y);
       const label = container.getData('choiceLabel') as Phaser.GameObjects.Text;
       if (label?.active) {
         label.setPosition(container.x, container.y - 80);
@@ -646,10 +650,7 @@ class GameScene extends Phaser.Scene {
   private fireSquad() {
     combatAudio.fire(this.equippedWeapon);
     // Player
-    this.fireProjectileFrom(
-      this.player.x,
-      this.player.y - 30
-    );
+    this.fireProjectileFrom(this.player);
 
     // Troops
     for (
@@ -660,17 +661,13 @@ class GameScene extends Phaser.Scene {
         continue;
       }
 
-      this.fireProjectileFrom(
-        troop.x,
-        troop.y - 30
-      );
+      this.fireProjectileFrom(troop);
     }
   }
 
-  private fireProjectileFrom(
-    x: number,
-    y: number
-  ) {
+  private fireProjectileFrom(actor: Phaser.Physics.Arcade.Sprite) {
+    const { x, y } = weaponMuzzle(actor.x, actor.y, this.equippedWeapon);
+    actor.setData('shotAt', this.time.now);
     const weapon = weaponProfile(this.equippedWeapon, this.weaponLevels);
     for (const angle of weapon.angles) {
       const projectile = new Projectile(this, x, y);
@@ -680,10 +677,17 @@ class GameScene extends Phaser.Scene {
       projectile.range = weapon.range;
       projectile.setTint(weapon.color).setBlendMode(Phaser.BlendModes.ADD);
       if (weapon.splash) projectile.setDisplaySize(12, 30);
+      else if (this.equippedWeapon === 'machine-gun') projectile.setDisplaySize(4, 24);
+      else if (this.equippedWeapon === 'shotgun') projectile.setDisplaySize(5, 11);
+      else projectile.setDisplaySize(4, 14);
       projectile.setRotation(angle);
       projectile.setVelocity(Math.sin(angle) * weapon.speed, -Math.cos(angle) * weapon.speed);
     }
-    const flash = this.add.circle(x, y, weapon.splash ? 12 : 7, weapon.color, 0.9).setDepth(15);
+    const flash = this.add.ellipse(x, y - 5, weapon.splash ? 18 : this.equippedWeapon === 'shotgun' ? 22 : 9, weapon.splash ? 28 : 19, weapon.color, 0.95).setDepth(15);
+    if (this.equippedWeapon === 'machine-gun' || this.equippedWeapon === 'shotgun') {
+      const casing = this.add.rectangle(x + 9, y + 18, 3, 5, 0xe4bd68).setDepth(14);
+      this.tweens.add({targets: casing, x: x + 26, y: y + 40, angle: 180, alpha: 0, duration: 220, onComplete: () => casing.destroy()});
+    }
     this.tweens.add({targets: flash, alpha: 0, scale: 0.2, duration: 70,
       onComplete: () => flash.destroy()});
   }
@@ -1107,6 +1111,11 @@ class GameScene extends Phaser.Scene {
     this.upgradeContainers.add(container);
     container.setVelocityY(70);
     this.createUpgradeChoiceLabel(container);
+    if (upgradeId === 'machine-gun' || upgradeId === 'shotgun' || upgradeId === 'rocket-launcher') {
+      const icon = this.add.image(container.x, container.y, 'held-' + upgradeId).setAngle(90).setScale(0.85).setDepth(11);
+      container.setData('weaponIcon', icon);
+      container.once('destroy', () => icon.destroy());
+    }
   }
 
   private rewardTitle(id: UpgradeId) {

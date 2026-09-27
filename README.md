@@ -147,7 +147,9 @@ The HUD shows your **best endless wave reached** and **best endless score**, tra
 - Weapon, health, squad, obstacle durability, stage progress, and boss health displays.
 - Canvas sizing that fits the available browser viewport.
 
-Character movement currently uses procedural sway rather than full frame-based walking animations. The game remains a 2D prototype with a perspective-style presentation.
+Character motion uses jointed cutout animation from the existing atlas: alternating leg swings, body weight shifts, faster Runner steps, and heavier Tank/boss strides. Squad footwork follows actual sideways movement and settles when stationary. This is procedural 2D animation rather than a new frame-by-frame sprite sheet.
+
+Each squad member displays the equipped weapon with its own silhouette, recoil, barrel-aligned muzzle flash, and projectile shape. Machine guns and shotguns eject casings; weapon crates display matching gun icons. Level 2/3 weapons receive cool-metal/gold highlights.
 
 ## Run locally
 
