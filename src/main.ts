@@ -1185,9 +1185,9 @@ class GameScene extends Phaser.Scene {
   private showStartMenu(selected: Difficulty = this.difficulty) {
     const best = readSurvivalBest(undefined, selected);
     this.menu('ALPHA STRIKE', 'Choose your challenge.\n' +
-      (selected === 'normal' ? 'Normal: the current combat balance.' : 'Hard: +30% enemy health, +12% speed, faster boss attacks.') +
+      (selected === 'easy' ? 'Easy: 25% lower enemy health, 15% slower movement, longer boss recovery.' : selected === 'normal' ? 'Normal: the current combat balance.' : 'Hard: +30% enemy health, +12% speed, faster boss attacks.') +
       '\nEndless best: wave ' + best.wave + ' • ' + best.score + ' points\nEndless starts with a Lv 2 machine gun and 4 troops.\n\nMove: A/D or arrows • Pause: Esc', [
-      { label: 'Difficulty: ' + selected.toUpperCase() + ' — change', run: () => { this.showStartMenu(selected === 'normal' ? 'hard' : 'normal'); } },
+      { label: 'Difficulty: ' + selected.toUpperCase() + ' — change', run: () => { this.showStartMenu(selected === 'easy' ? 'normal' : selected === 'normal' ? 'hard' : 'easy'); } },
       { label: 'Start campaign', run: () => this.startRun(false, selected) },
       { label: endlessUnlocked() ? 'Start endless' : 'Endless — beat the campaign to unlock', disabled: !endlessUnlocked(), run: () => this.startRun(true, selected) },
       { label: combatAudio.muted ? 'Sound: OFF' : 'Sound: ON', run: () => { combatAudio.toggle(); this.showStartMenu(selected); } },

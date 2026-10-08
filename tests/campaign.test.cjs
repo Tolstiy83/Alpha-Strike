@@ -321,9 +321,11 @@ test('hard bosses have more health and shorter recovery without shortening dodge
   }
 });
 
-test('normal and hard records are separate and paused update cannot advance combat', () => {
+test('easy, normal and hard records are separate and paused update cannot advance combat', () => {
   const { readSurvivalBest, saveSurvivalBest } = load('src/data/survival.ts');
   const values = new Map(); const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) };
+  saveSurvivalBest(30, 9000, storage, 'easy');
+  assert.equal(readSurvivalBest(storage, 'easy').score, 9000);
   saveSurvivalBest(12, 5000, storage, 'normal'); saveSurvivalBest(6, 1000, storage, 'hard');
   assert.equal(readSurvivalBest(storage, 'normal').score, 5000);
   assert.equal(readSurvivalBest(storage, 'hard').score, 1000);
@@ -339,4 +341,33 @@ test('difficulty and result counters carry through stages and reset when enterin
   const final = sceneForStage(3); final.scene.kills = 300; final.scene.bossesDefeated = 3;
   final.scene.completeStage(); final.scene.enterEndless();
   assert.equal(final.restarts[0].kills, 0); assert.equal(final.restarts[0].bossesDefeated, 0);
+});
+
+
+test('easy bosses are weaker with longer recovery across all attack styles', () => {
+  for (const style of ['melee', 'ranged', 'sweep']) {
+    const easy = new Boss(bossScene(), style, 0, 'easy');
+    const normal = new Boss(bossScene(), style, 0, 'normal');
+    assert.ok(easy.maxHealth < normal.maxHealth);
+    assert.equal(easy.windupDuration, normal.windupDuration);
+    for (const boss of [easy, normal]) {
+      boss.x = 400; boss.y = style === 'melee' ? 610 : 400;
+      boss.updateCombat(16, 400, 680); boss.updateCombat(boss.windupDuration, 400, 680);
+    }
+    assert.ok(easy.recovery > normal.recovery);
+  }
+});
+
+test('difficulty menu cycles through all modes and starts the selected difficulty', () => {
+  const scene = new GameScene();
+  let actions;
+  scene.menu = (_title, _detail, buttons) => { actions = buttons; };
+  let started;
+  scene.startRun = (endless, difficulty) => { started = { endless, difficulty }; };
+  scene.showStartMenu('easy');
+  for (const mode of ['EASY', 'NORMAL', 'HARD', 'EASY']) {
+    assert.ok(actions[0].label.includes(mode));
+    actions[1].run(); assert.equal(started.difficulty, mode.toLowerCase());
+    actions[0].run();
+  }
 });

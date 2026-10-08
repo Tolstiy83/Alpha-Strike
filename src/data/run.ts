@@ -1,6 +1,6 @@
 import type { StageCarry } from './campaign';
 import { readSurvivalBest } from './survival';
-export type Difficulty = 'normal' | 'hard';
+export type Difficulty = 'easy' | 'normal' | 'hard';
 let unlockedThisSession = false;
 export function endlessUnlocked() {
   try { return unlockedThisSession || localStorage.getItem('alpha-strike-endless-unlocked') === 'true' || readSurvivalBest().wave > 0; }
@@ -16,4 +16,5 @@ export function freshRun(difficulty: Difficulty, endless = false): StageCarry {
     : { started: true, difficulty };
 }
 export const difficultyScale = (difficulty: Difficulty) => difficulty === 'hard'
-  ? { health: 1.3, speed: 1.12, recovery: 0.85 } : { health: 1, speed: 1, recovery: 1 };
+  ? { health: 1.3, speed: 1.12, recovery: 0.85 } : difficulty === 'easy'
+  ? { health: 0.75, speed: 0.85, recovery: 1.25 } : { health: 1, speed: 1, recovery: 1 };

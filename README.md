@@ -4,9 +4,9 @@ A browser-based squad shooter built with **Phaser 4, TypeScript, and Vite**. Hol
 
 ## Menus and difficulty
 
-The game waits at a start menu. Choose **Normal** (the existing balance) or **Hard** (+30% enemy/boss health, +12% movement speed, and 15% shorter boss recovery). Warning countdowns stay the same. Start the campaign, or launch endless directly after unlocking it by completing the campaign. Existing saved endless records also grant the unlock.
+The game waits at a start menu. Choose **Easy** (25% lower enemy/boss health, rounded up, 15% slower movement, and 25% longer boss recovery), **Normal** (the existing balance), or **Hard** (+30% enemy/boss health, +12% movement speed, and 15% shorter boss recovery). Warning countdowns stay the same. Start the campaign, or launch endless directly after unlocking it by completing the campaign. Existing saved endless records also grant the unlock.
 
-Direct endless starts with 100 health, four supporting troops, a Level 2 machine gun, and zero score. Continuing from campaign victory instead carries your surviving squad and equipment. Normal and Hard have separate endless records.
+Direct endless starts with 100 health, four supporting troops, a Level 2 machine gun, and zero score. Continuing from campaign victory instead carries your surviving squad and equipment. Easy, Normal, and Hard have separate endless records.
 
 Press **Esc** or click **Pause** to freeze the whole fight. Resume, toggle sound, restart the current mode, or return to the main menu. Losing window focus also pauses active combat. Menus support mouse and keyboard focus navigation.
 
