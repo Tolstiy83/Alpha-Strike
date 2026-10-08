@@ -47,3 +47,10 @@ canvas { touch-action: none; }
   .run-menu-panel { max-height: 92dvh; padding: 18px; }
   .run-menu-panel h1 { font-size: 26px; }
 }
+
+.mobile-hud { display: none; }
+@media (pointer: coarse), (max-width: 600px) {
+  .mobile-hud { display: grid; box-sizing: border-box; width: min(100%, 500px); min-height: 82px; padding: 6px 10px; gap: 3px; font: bold 15px/1.3 Arial, sans-serif; color: #e4fff3; background: #142330; text-align: center; }
+  .mobile-notice { min-height: 20px; color: #ffab91; }
+  canvas { width: min(100vw, calc((100dvh - 272px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 0.888889)); }
+}

@@ -1,3 +1,4 @@
+import { createMobileHud } from './ui/mobileHud';
 import { createTouchControls } from './ui/touchControls';
 import { createWeaponTextures, weaponMuzzle } from './visuals/weapons';
 import { freshRun, endlessUnlocked, unlockEndless, difficultyScale, type Difficulty } from './data/run';
@@ -32,6 +33,7 @@ import {
 
 class GameScene extends Phaser.Scene {
   private touchControls?: ReturnType<typeof createTouchControls>;
+  private mobileHud?: ReturnType<typeof createMobileHud>;
   private stage = 1;
   private difficulty: Difficulty = 'normal';
   private kills = 0;
@@ -406,6 +408,7 @@ class GameScene extends Phaser.Scene {
       window.removeEventListener('pagehide', onPageHide);
       this.input.keyboard?.off('keydown', onBonus);
     });
+    this.mobileHud = createMobileHud();
     this.touchControls = createTouchControls({
       position: () => this.player.x,
       move: x => this.player.setTouchTarget(x),
@@ -414,12 +417,18 @@ class GameScene extends Phaser.Scene {
       pause: () => this.pauseRun(), bonus: bonus => this.selectBonus(bonus), next: () => this.advanceStage(),
       unlockAudio: () => { void combatAudio.unlock(); },
     });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.touchControls?.destroy(); this.touchControls = undefined; });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.touchControls?.destroy(); this.touchControls = undefined; this.mobileHud?.destroy(); this.mobileHud = undefined; });
     if (!carry.started) this.showStartMenu();
   }
 
   update(time: number, delta: number) {
     this.touchControls?.refresh();
+    if (this.mobileHud) {
+      const warning = this.boss?.active && this.bossWarningText ? ' • DODGE ' + ((1 - this.boss.attackProgress) * this.boss.windupDuration / 1000).toFixed(1) + 's' : '';
+      this.mobileHud.update(WEAPONS[this.equippedWeapon].name + ' Lv ' + weaponLevel(this.weaponLevels, this.equippedWeapon) +
+        ' • Troops ' + this.troopSystem.getTroopCount() + ' • HP ' + this.playerHealth,
+        this.boss?.active && this.boss.health > 0 ? 'BOSS ' + this.boss.health + '/' + this.boss.maxHealth + warning : this.runLabel + ' • ' + this.difficulty.toUpperCase(), this.time.now);
+    }
     if (this.menuOpen || this.isGameOver || this.stageFinished) {
       return;
     }
@@ -516,6 +525,8 @@ class GameScene extends Phaser.Scene {
     // Breaches and boss strikes share the same protection window.
     if (this.time.now < this.squadProtectedUntil) return;
     this.squadProtectedUntil = this.time.now + 800;
+    this.player.setData('hitUntil', this.time.now + 180);
+    for (const troop of this.troopSystem.getTroops()) troop.setData('hitUntil', this.time.now + 180);
     const lostTroop = this.troopSystem.removeTroop();
     if (lostTroop) {
       this.updateWeaponStatsText();
@@ -528,8 +539,9 @@ class GameScene extends Phaser.Scene {
   }
 
   private showSquadHit(x: number, y: number, message: string) {
+    this.mobileHud?.hit(message, this.time.now);
     const label = this.add.text(x, y - 35, message, {
-      fontFamily: 'Arial', fontSize: '22px', fontStyle: 'bold', color: '#ff8a80',
+      fontFamily: 'Arial', fontSize: '32px', fontStyle: 'bold', color: '#ff8a80',
       stroke: '#101820', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(90);
     this.tweens.add({ targets: label, y: y - 95, alpha: 0, duration: 800,
@@ -949,7 +961,7 @@ class GameScene extends Phaser.Scene {
       this.bossCountdown = this.add.circle(x, this.player.y, 95)
         .setStrokeStyle(4, 0xffffff).setDepth(12);
       this.bossWarningText = this.add.text(x, this.player.y - 115, '', {
-        fontFamily: 'Arial', fontSize: '19px', fontStyle: 'bold', color: '#ffffff',
+        fontFamily: 'Arial', fontSize: '28px', fontStyle: 'bold', color: '#ffffff',
         stroke: '#581b16', strokeThickness: 5, backgroundColor: '#581b16',
         padding: { x: 8, y: 5 },
       }).setOrigin(0.5).setDepth(40);
@@ -986,7 +998,7 @@ class GameScene extends Phaser.Scene {
       this.bossLaneWarning = this.add.rectangle(bounds.center, 570, this.scale.width / 3, 660, 0xff593b, 0.18)
         .setStrokeStyle(4, 0xffdf8a).setDepth(1.9);
       this.bossWarningText = this.add.text(bounds.center, 565, '', {
-        fontFamily: 'Arial', fontSize: '20px', fontStyle: 'bold', color: '#ffffff',
+        fontFamily: 'Arial', fontSize: '28px', fontStyle: 'bold', color: '#ffffff',
         backgroundColor: '#682617', align: 'center', padding: { x: 8, y: 8 },
       }).setOrigin(0.5).setDepth(40);
       combatAudio.warning();

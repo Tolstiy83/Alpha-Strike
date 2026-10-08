@@ -88,7 +88,7 @@ test('industrial boss locks each warning, sweeps all lanes, then reacquires the 
 
 function ui(x = 0, y = 0) {
   const object = { x, y, active: true, text: '', destroyed: false };
-  for (const method of ['setRotation', 'setFillStyle', 'setStrokeStyle', 'setScale', 'setDepth', 'setOrigin', 'setInteractive', 'setBackgroundColor', 'setColor', 'setVelocity', 'setAlpha', 'on']) object[method] = () => object;
+  for (const method of ['setRotation', 'setFillStyle', 'setStrokeStyle', 'setScale', 'setDepth', 'setOrigin', 'setInteractive', 'setBackgroundColor', 'setColor', 'setVelocity', 'setAlpha', 'on', 'once']) object[method] = () => object;
   object.setText = text => { object.text = text; return object; };
   object.destroy = () => { object.destroyed = true; };
   return object;
@@ -425,4 +425,31 @@ test('touch cleanup is safe after Phaser destroys the player physics body', () =
   player.body = undefined;
   player.setVelocityX = () => { throw new Error('Destroyed physics body accessed'); };
   assert.doesNotThrow(() => player.setTouchTarget());
+});
+
+
+test('enraging never shortens an attack warning already in progress on any difficulty', () => {
+  for (const difficulty of ['easy', 'normal', 'hard']) for (const style of ['melee', 'ranged', 'sweep']) {
+    const boss = new Boss(bossScene(), style, 0, difficulty);
+    boss.x = 400; boss.y = style === 'melee' ? 610 : 400;
+    assert.equal(boss.updateCombat(16, 400, 680), 'warning');
+    const duration = boss.windupDuration;
+    boss.updateCombat(duration / 2, 400, 680);
+    boss.takeDamage(Math.ceil(boss.maxHealth * 0.55));
+    assert.equal(boss.enraged, true); assert.equal(boss.windupDuration, duration);
+    assert.equal(boss.updateCombat(duration / 2 - 1, 400, 680), undefined);
+    assert.equal(boss.updateCombat(1, 400, 680), 'strike');
+    assert.ok(boss.windupDuration < duration);
+  }
+});
+
+test('dense explosion bursts cap decorative objects and recover capacity after destruction', () => {
+  const { combatBurst, effectBudget } = load('src/visuals/combat.ts');
+  const sparks = [];
+  const scene = { add: { rectangle() { const spark = ui(); spark.once = (_event, fn) => { spark.cleanup = fn; return spark; }; sparks.push(spark); return spark; } }, tweens: { add() {} } };
+  for (let i = 0; i < 1000; i++) combatBurst(scene, 0, 0, 0xffffff, true);
+  assert.equal(sparks.length, 80); assert.equal(effectBudget(scene).active, 80);
+  sparks.forEach(spark => spark.cleanup());
+  assert.equal(effectBudget(scene).active, 0);
+  combatBurst(scene, 0, 0, 0xffffff, true); assert.equal(effectBudget(scene).active, 10);
 });

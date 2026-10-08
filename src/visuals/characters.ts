@@ -29,7 +29,9 @@ export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: 
   const destroy = (v: Visual) => { v.torso.destroy(); v.legs.forEach(leg => leg.destroy()); v.gun?.destroy(); v.shadow.destroy(); };
   const render = (_time: number, delta: number) => {
     const weapon = equipment();
-    for (const object of [...scene.children.list]) {
+    const existingCount = scene.children.list.length;
+    for (let index = 0; index < existingCount; index++) {
+      const object = scene.children.list[index];
       if (!(object instanceof Phaser.Physics.Arcade.Sprite)) continue;
       const key = object.texture.key;
       if (!['player', 'troop', 'enemy', 'boss'].includes(key) || visuals.has(object)) continue;
@@ -85,7 +87,8 @@ export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: 
         else part.setTintMode(Phaser.TintModes.MULTIPLY).setTint(actor.texture.key === 'boss' && actor.tintTopLeft !== 0xffffff ? 0xffb49e : v.tint);
       }
       if (v.gun) {
-        v.gun.setTexture('held-' + weapon.id).setPosition(actor.x + 8, actor.y - 52 + recoil * (weapon.id === 'rocket-launcher' ? 5 : 3))
+        if (v.gun.texture.key !== 'held-' + weapon.id) v.gun.setTexture('held-' + weapon.id);
+        v.gun.setPosition(actor.x + 8, actor.y - 52 + recoil * (weapon.id === 'rocket-launcher' ? 5 : 3))
           .setAngle(stride * 1.5).setDepth(depth + 0.004).setAlpha(actor.alpha);
         v.gun.setTint(weapon.level === 3 ? 0xffe3a0 : weapon.level === 2 ? 0xc5eaff : 0xffffff);
       }

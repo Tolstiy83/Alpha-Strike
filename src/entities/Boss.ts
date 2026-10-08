@@ -10,6 +10,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   health: number;
   private attackElapsed = 0;
   private windingUp = false;
+  private lockedWindup = 0;
   private recovery = 0;
   readonly style: BossStyle;
   private endlessRound: number;
@@ -18,7 +19,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   private sweepStart = 0;
   private sweepIndex = 0;
 
-  get windupDuration() { return this.style === 'sweep' ? (this.enraged ? 1100 : 1400) : this.style === 'ranged' ? (this.enraged ? 850 : 1200) : (this.enraged ? 650 : 900); }
+  get windupDuration() { return this.windingUp ? this.lockedWindup : this.style === 'sweep' ? (this.enraged ? 1100 : 1400) : this.style === 'ranged' ? (this.enraged ? 850 : 1200) : (this.enraged ? 650 : 900); }
   get attackProgress() { return this.windingUp ? Math.min(1, this.attackElapsed / this.windupDuration) : 0; }
 
   get enraged() { return this.health <= this.maxHealth / 2; }
@@ -63,6 +64,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
         this.attackLane = (this.sweepStart + this.sweepIndex) % 3;
         this.sweepIndex = (this.sweepIndex + 1) % 3;
       }
+      this.lockedWindup = this.windupDuration;
       this.windingUp = true;
       this.attackElapsed = 0;
       return 'warning';

@@ -205,3 +205,7 @@ This is a playable three-stage prototype. Progress lasts for the current run; on
 ## License
 
 No formal license is currently included in this repository.
+
+### Mobile polish
+
+The mobile status bar shows weapon level, troop count, player HP, and boss HP / dodge countdown at readable text sizes. Squad hits flash the soldiers and show a larger troop-loss message. Boss warnings keep their original duration if the boss enrages mid-attack. Decorative debris is capped at 80 live particles; projectile damage and enemy counts are unaffected.
