@@ -1,3 +1,4 @@
+import { createTouchControls } from './ui/touchControls';
 import { createWeaponTextures, weaponMuzzle } from './visuals/weapons';
 import { freshRun, endlessUnlocked, unlockEndless, difficultyScale, type Difficulty } from './data/run';
 import { showRunMenu } from './ui/runMenu';
@@ -30,6 +31,7 @@ import {
 } from './data/enemies';
 
 class GameScene extends Phaser.Scene {
+  private touchControls?: ReturnType<typeof createTouchControls>;
   private stage = 1;
   private difficulty: Difficulty = 'normal';
   private kills = 0;
@@ -377,6 +379,8 @@ class GameScene extends Phaser.Scene {
     this.add.text(470, 215, 'PAUSE [ESC]', { fontFamily: 'Arial', fontSize: '16px', color: '#ffffff', backgroundColor: '#18222c', padding: {x: 8, y: 5} }).setDepth(100).setInteractive({useHandCursor: true}).on('pointerdown', () => this.pauseRun());
     const onBlur = () => this.pauseRun();
     window.addEventListener('blur', onBlur);
+    const onVisibility = () => { if (document.hidden) this.pauseRun(); };
+    document.addEventListener('visibilitychange', onVisibility);
     const onSpace = (event: KeyboardEvent) => {
       if (!event.repeat) this.advanceStage();
     };
@@ -396,15 +400,26 @@ class GameScene extends Phaser.Scene {
       this.closeMenu?.(); this.closeMenu = undefined;
       this.input.keyboard?.off('keydown-ESC', onPause);
       window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onVisibility);
       this.input.keyboard?.off('keydown-SPACE', onSpace);
       this.input.keyboard?.off('keydown-E', onEndless);
       window.removeEventListener('pagehide', onPageHide);
       this.input.keyboard?.off('keydown', onBonus);
     });
+    this.touchControls = createTouchControls({
+      position: () => this.player.x,
+      move: x => this.player.setTouchTarget(x),
+      state: () => ({ blocked: this.menuOpen || this.isGameOver || this.transitioning,
+        choosing: this.stageFinished && (this.stage < STAGES.length || this.endlessRound > 0), selected: this.selectedBonus }),
+      pause: () => this.pauseRun(), bonus: bonus => this.selectBonus(bonus), next: () => this.advanceStage(),
+      unlockAudio: () => { void combatAudio.unlock(); },
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.touchControls?.destroy(); this.touchControls = undefined; });
     if (!carry.started) this.showStartMenu();
   }
 
   update(time: number, delta: number) {
+    this.touchControls?.refresh();
     if (this.menuOpen || this.isGameOver || this.stageFinished) {
       return;
     }
@@ -416,7 +431,7 @@ class GameScene extends Phaser.Scene {
     this.updateRoad(delta);
     this.updateBoss(delta);
     if (this.isGameOver || this.stageFinished) return;
-    this.player.update();
+    this.player.update(delta);
 
     this.troopSystem.update();
     const protectedNow = this.time.now < this.squadProtectedUntil;
@@ -1155,6 +1170,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private menu(title: string, detail: string, actions: Parameters<typeof showRunMenu>[2], shortcut?: (key: string) => void) {
+    this.touchControls?.reset();
     this.closeMenu?.();
     if (!this.menuOpen) this.pausedAt = performance.now();
     this.menuOpen = true;
@@ -1186,7 +1202,7 @@ class GameScene extends Phaser.Scene {
     const best = readSurvivalBest(undefined, selected);
     this.menu('ALPHA STRIKE', 'Choose your challenge.\n' +
       (selected === 'easy' ? 'Easy: 25% lower enemy health, 15% slower movement, longer boss recovery.' : selected === 'normal' ? 'Normal: the current combat balance.' : 'Hard: +30% enemy health, +12% speed, faster boss attacks.') +
-      '\nEndless best: wave ' + best.wave + ' • ' + best.score + ' points\nEndless starts with a Lv 2 machine gun and 4 troops.\n\nMove: A/D or arrows • Pause: Esc', [
+      '\nEndless best: wave ' + best.wave + ' • ' + best.score + ' points\nEndless starts with a Lv 2 machine gun and 4 troops.\n\nMove: drag below the game or A/D / arrows • Pause: button or Esc', [
       { label: 'Difficulty: ' + selected.toUpperCase() + ' — change', run: () => { this.showStartMenu(selected === 'easy' ? 'normal' : selected === 'normal' ? 'hard' : 'easy'); } },
       { label: 'Start campaign', run: () => this.startRun(false, selected) },
       { label: endlessUnlocked() ? 'Start endless' : 'Endless — beat the campaign to unlock', disabled: !endlessUnlocked(), run: () => this.startRun(true, selected) },
@@ -1302,6 +1318,7 @@ class GameScene extends Phaser.Scene {
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
+  parent: 'app',
 
   width: 800,
   height: 900,

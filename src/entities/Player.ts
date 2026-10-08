@@ -8,6 +8,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   };
 
   private moveSpeed = 400;
+  private touchTarget?: number;
+
+  setTouchTarget(x?: number) {
+    this.touchTarget = x;
+    if (x === undefined) this.setVelocityX(0);
+  }
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'player');
@@ -34,9 +40,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     };
   }
 
-  update() {
+  update(delta = 16.67) {
     // Stop horizontal movement unless a key is pressed
-    this.setVelocityX(0);
+    this.setVelocityX(this.touchTarget === undefined ? 0 :
+      Phaser.Math.Clamp((this.touchTarget - this.x) / (Math.max(1, delta) / 1000), -this.moveSpeed, this.moveSpeed));
 
     if (this.cursors.left.isDown || this.wasd.left.isDown) {
       this.setVelocityX(-this.moveSpeed);

@@ -28,3 +28,22 @@ canvas {
 .run-menu-panel button { display: block; width: 100%; margin: 10px 0; padding: 13px; border: 1px solid #628398; border-radius: 8px; background: #264557; color: white; font-size: 17px; cursor: pointer; }
 .run-menu-panel button:hover, .run-menu-panel button:focus-visible { background: #326b65; outline: 2px solid #6ee7b7; }
 .run-menu-panel button:disabled { opacity: .5; cursor: default; }
+
+body { flex-direction: column; min-height: 100dvh; }
+canvas { touch-action: none; }
+.touch-controls { display: none; }
+@media (pointer: coarse), (max-width: 600px) {
+  body { box-sizing: border-box; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  canvas { width: min(100vw, calc((100dvh - 190px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 0.888889)); }
+  .touch-controls { display: grid; gap: 8px; width: min(100%, 500px); padding: 8px 12px; box-sizing: border-box; font: 15px Arial, sans-serif; color: #e7f7f4; }
+  .touch-controls button { min-height: 44px; padding: 8px; border: 1px solid #628398; border-radius: 8px; background: #264557; color: white; font: inherit; touch-action: manipulation; }
+  .touch-controls button:disabled { opacity: .45; }
+  .touch-controls button[aria-pressed="true"] { background: #236957; outline: 2px solid #6ee7b7; }
+  .touch-pad { height: 84px; display: grid; place-items: center; border: 1px solid #628398; border-radius: 14px; background: #142330; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .touch-pad.dragging { background: #236957; border-color: #6ee7b7; }
+  .touch-rewards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .touch-controls [hidden] { display: none; }
+  .run-menu { padding: 12px; }
+  .run-menu-panel { max-height: 92dvh; padding: 18px; }
+  .run-menu-panel h1 { font-size: 26px; }
+}

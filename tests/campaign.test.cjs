@@ -371,3 +371,47 @@ test('difficulty menu cycles through all modes and starts the selected difficult
     actions[0].run();
   }
 });
+
+
+test('touch movement respects speed limits, stops on release, and keeps keyboard control', () => {
+  const { Player } = load('src/entities/Player.ts');
+  const player = Object.create(Player.prototype);
+  Object.assign(player, { x: 400, moveSpeed: 400, cursors: { left: {}, right: {} }, wasd: { left: {}, right: {} }, setVelocityX(x) { this.vx = x; } });
+  player.setTouchTarget(700); player.update(16); assert.equal(player.vx, 400);
+  player.setTouchTarget(100); player.update(16); assert.equal(player.vx, -400);
+  player.setTouchTarget(401); player.update(20); assert.equal(player.vx, 50);
+  player.setTouchTarget(); assert.equal(player.vx, 0);
+  player.update(16); assert.equal(player.vx, 0);
+  player.cursors.left.isDown = true; player.update(16); assert.equal(player.vx, -400);
+});
+
+test('touch pad handles scaling, extra fingers, cancellation, bonuses, and cleanup', () => {
+  const elements = [];
+  const listeners = new Map();
+  const document = { createElement() {
+    const el = { children: [], classList: { add() {}, remove() {} }, append(...items) { this.children.push(...items); },
+      setAttribute() {}, setPointerCapture(id) { this.captured = id; }, hasPointerCapture(id) { return this.captured === id; },
+      releasePointerCapture() { this.captured = undefined; }, getBoundingClientRect() { return { width: 400 }; }, remove() { this.removed = true; } };
+    elements.push(el); return el;
+  }, body: { append() {} } };
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'src/ui/touchControls.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText, { exports, document, window: { addEventListener: (key, fn) => listeners.set(key, fn), removeEventListener: key => listeners.delete(key) } });
+  let target, paused = false, advanced = false;
+  const state = { blocked: false, choosing: false };
+  const controls = exports.createTouchControls({ position: () => 400, move: x => target = x, state: () => state,
+    pause: () => paused = true, bonus: value => state.selected = value, next: () => advanced = true, unlockAudio() {} });
+  const rootEl = elements[0]; const [pause, pad, rewards, next] = rootEl.children;
+  const event = (id, x) => ({ pointerId: id, clientX: x, button: 0, preventDefault() {} });
+  pad.onpointerdown(event(1, 100)); pad.onpointermove(event(1, 150)); assert.equal(target, 500);
+  pad.onpointerdown(event(2, 100)); pad.onpointermove(event(2, 300)); assert.equal(target, 500);
+  pad.onpointermove(event(1, 1000)); assert.equal(target, 776);
+  pad.onpointercancel(event(1, 1000)); assert.equal(target, undefined);
+  pad.onpointermove(event(1, 200)); assert.equal(target, undefined);
+  pad.onpointerdown(event(3, 100)); pad.onpointermove(event(3, 150)); pause.onclick(); assert.equal(target, undefined); assert.ok(paused);
+  state.choosing = true; controls.refresh(); assert.equal(pad.hidden, true); assert.equal(next.disabled, true);
+  rewards.children[1].onclick(); assert.equal(state.selected, 'troop'); assert.equal(next.disabled, false);
+  next.onclick(); assert.ok(advanced);
+  controls.destroy(); assert.ok(rootEl.removed); assert.equal(listeners.size, 0);
+});

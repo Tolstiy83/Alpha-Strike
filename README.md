@@ -28,9 +28,11 @@ Weapon crates arrive at 6 and 29 seconds; troop barricades arrive at 17 and 41 s
 
 ## Controls
 
+On phones and narrow screens, drag the pad below the battlefield to move. Shooting is automatic. Release to stop; use the large Pause button and tap bonus / Continue buttons between stages. Keyboard controls still work on desktop.
+
 | Action | Control |
 | --- | --- |
-| Move left / right | Arrow keys or A / D |
+| Move left / right | Arrow keys, A / D, or drag the touch pad below the game |
 | Shoot | Automatic |
 | Toggle sound | M or the sound button |
 | Choose a stage-clear bonus | Click a card or press 1 / 2 / 3 |
@@ -198,7 +200,7 @@ src/
 
 ## Current scope
 
-This is a playable three-stage prototype. Progress lasts for the current run; only endless personal records persist; there is no run-resume system, base building, multiplayer, or touch controls yet. Weapon balance, horde density, and boss difficulty are still being tuned through playtesting. `npm test` runs campaign regression checks for reward selection, carryover, restart behavior, boss timing, lane sweeps, endless transitions, scaling, and personal-record storage, difficulty separation, fresh-run loadouts, and result-counter carryover. The suite isolates game logic with Phaser stubs; browser playtesting checks the rendered experience.
+This is a playable three-stage prototype. Progress lasts for the current run; only endless personal records persist; there is no run-resume system, base building, multiplayer, yet. Weapon balance, horde density, and boss difficulty are still being tuned through playtesting. `npm test` runs campaign regression checks for reward selection, carryover, restart behavior, boss timing, lane sweeps, endless transitions, scaling, and personal-record storage, difficulty separation, fresh-run loadouts, and result-counter carryover. The suite isolates game logic with Phaser stubs; browser playtesting checks the rendered experience.
 
 ## License
 
