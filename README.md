@@ -72,7 +72,7 @@ A first pickup unlocks a weapon at Level 1. Collecting the equipped weapon again
 | Weapon | Level 1 | Level 2 | Level 3 |
 | --- | --- | --- | --- |
 | Machine gun | 210 ms between volleys | 175 ms | 145 ms |
-| Shotgun | 0.14-radian spread | 0.105-radian spread | 0.07-radian spread |
+| Shotgun | 0.07-radian spread (narrow) | 0.105-radian spread (medium) | 0.14-radian spread (wide) |
 | Rocket launcher | 95-pixel blast radius | 115 pixels | 135 pixels |
 
 Damage bonuses from stage-clear choices remain separate and apply at every weapon level. Projectiles already in flight retain the stats they were fired with.
