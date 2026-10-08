@@ -102,14 +102,14 @@ export class TroopSystem {
           Phaser.Math.Linear(
             troop.x,
             targetX,
-            0.15
+            0.8
           );
 
         troop.y =
           Phaser.Math.Linear(
             troop.y,
             targetY,
-            0.15
+            0.8
           );
       }
     );
