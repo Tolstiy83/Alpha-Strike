@@ -8,12 +8,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   };
 
   private moveSpeed = 400;
-  private touchTarget?: number;
 
   setTouchTarget(x?: number) {
-    this.touchTarget = x;
     // Scene shutdown can remove the physics body before touch controls clean up.
-    if (x === undefined && this.body) this.setVelocityX(0);
+    if (!this.body) return;
+    this.setVelocityX(0);
+    // Touch is direct positioning: do not make the player chase a fast swipe.
+    if (x !== undefined) this.body.reset(Phaser.Math.Clamp(x, 24, this.scene.scale.width - 24), this.y);
   }
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -41,10 +42,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     };
   }
 
-  update(delta = 16.67) {
+  update() {
     // Stop horizontal movement unless a key is pressed
-    this.setVelocityX(this.touchTarget === undefined ? 0 :
-      Phaser.Math.Clamp((this.touchTarget - this.x) / (Math.max(1, delta) / 1000), -this.moveSpeed, this.moveSpeed));
+    this.setVelocityX(0);
 
     if (this.cursors.left.isDown || this.wasd.left.isDown) {
       this.setVelocityX(-this.moveSpeed);

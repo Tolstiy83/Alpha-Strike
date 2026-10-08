@@ -52,8 +52,12 @@ export function createTouchControls(options: {
   const release = (event: PointerEvent) => { if (event.pointerId === pointer) reset(); };
   pad.onpointerup = release; pad.onpointercancel = release; pad.onlostpointercapture = release;
   window.addEventListener('blur', reset); window.addEventListener('resize', reset);
+  let lastState = "";
   const refresh = () => {
     const state = options.state();
+    const signature = [state.blocked, state.choosing, state.selected].join(':');
+    if (signature === lastState) return;
+    lastState = signature;
     pad.hidden = state.choosing; pause.hidden = state.choosing;
     rewards.hidden = !state.choosing; next.hidden = !state.choosing;
     next.disabled = !state.selected;

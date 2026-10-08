@@ -431,7 +431,7 @@ class GameScene extends Phaser.Scene {
     this.updateRoad(delta);
     this.updateBoss(delta);
     if (this.isGameOver || this.stageFinished) return;
-    this.player.update(delta);
+    this.player.update();
 
     this.troopSystem.update();
     const protectedNow = this.time.now < this.squadProtectedUntil;
