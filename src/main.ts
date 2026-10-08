@@ -675,7 +675,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private fireSquad() {
-    combatAudio.fire(this.equippedWeapon);
+    combatAudio.fire(this.equippedWeapon, weaponLevel(this.weaponLevels, this.equippedWeapon));
     // Player
     this.fireProjectileFrom(this.player);
 
@@ -704,7 +704,7 @@ class GameScene extends Phaser.Scene {
       projectile.range = weapon.range;
       projectile.setTint(weapon.color).setBlendMode(Phaser.BlendModes.ADD);
       if (weapon.splash) projectile.setDisplaySize(12, 30);
-      else if (this.equippedWeapon === 'machine-gun') projectile.setDisplaySize(4, 24);
+      else if (this.equippedWeapon === 'machine-gun') projectile.setDisplaySize(3 + weaponLevel(this.weaponLevels, this.equippedWeapon), 20 + weaponLevel(this.weaponLevels, this.equippedWeapon) * 4);
       else if (this.equippedWeapon === 'shotgun') projectile.setDisplaySize(5, 11);
       else projectile.setDisplaySize(4, 14);
       projectile.setRotation(angle);
@@ -745,6 +745,11 @@ class GameScene extends Phaser.Scene {
         this.enemiesAlive--;
         this.scoreText.setText('Score: ' + this.score);
       }
+    }
+    if (radius) {
+      // The expanding ring stops at the actual splash radius.
+      const ring = this.add.circle(x, y, radius).setStrokeStyle(4, 0xffe6a3).setDepth(15).setScale(0.2);
+      this.tweens.add({ targets: ring, scale: 1, alpha: 0, duration: 280, onComplete: () => ring.destroy() });
     }
     const impact = this.add.circle(x, y, radius || 10, radius ? 0xff914d : 0xffdc83, 0.65).setDepth(15);
     this.tweens.add({targets: impact, alpha: 0, scale: 1.2, duration: radius ? 280 : 100,
@@ -1040,6 +1045,8 @@ class GameScene extends Phaser.Scene {
         this.updateWeaponStatsText();
         this.showUpgradeNotification(WEAPONS[upgradeId].name.toUpperCase() + ' • LV ' + weaponLevel(this.weaponLevels, upgradeId),
           'Equipped for the whole squad • Level saved for this run');
+        combatAudio.upgrade(weaponLevel(this.weaponLevels, upgradeId));
+        this.mobileHud?.hit(WEAPONS[upgradeId].name.toUpperCase() + ' LEVEL ' + weaponLevel(this.weaponLevels, upgradeId), this.time.now);
         break;
       case 'rapid-fire':
         this.weaponStats.fireRate =

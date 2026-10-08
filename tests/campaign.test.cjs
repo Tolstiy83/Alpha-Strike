@@ -259,7 +259,7 @@ test('weapon levels improve their signature behavior without changing base defin
     const first = weaponProfile(id, { [id]: 1 }); const third = weaponProfile(id, { [id]: 3 });
     assert.equal(first.damage, third.damage);
     if (id === 'machine-gun') { assert.equal(first.interval, 210); assert.equal(third.interval, 145); }
-    if (id === 'shotgun') { assert.equal(third.angles.length, 3); assert.ok(Math.abs(third.angles[0]) > Math.abs(first.angles[0])); }
+    if (id === 'shotgun') { assert.equal(third.angles.length, 7); assert.ok(Math.abs(third.angles[0]) > Math.abs(first.angles[0])); }
     if (id === 'rocket-launcher') { assert.equal(first.splash, 95); assert.equal(third.splash, 135); }
     assert.equal(weaponProfile(id, { [id]: 1 }).interval, WEAPONS[id].interval);
   }
@@ -452,4 +452,16 @@ test('dense explosion bursts cap decorative objects and recover capacity after d
   sparks.forEach(spark => spark.cleanup());
   assert.equal(effectBudget(scene).active, 0);
   combatBurst(scene, 0, 0, 0xffffff, true); assert.equal(effectBudget(scene).active, 10);
+});
+
+
+test('shotgun upgrades add symmetric pellets across increasingly wide spreads', () => {
+  const { weaponProfile } = load('src/data/weapons.ts');
+  for (const level of [1, 2, 3]) {
+    const profile = weaponProfile('shotgun', { shotgun: level });
+    assert.equal(profile.angles.length, level * 2 + 1);
+    assert.equal(profile.angles[level], 0);
+    for (let i = 0; i < level; i++) assert.equal(profile.angles[i], -profile.angles[profile.angles.length - 1 - i]);
+    assert.equal(profile.damage, 2); assert.equal(profile.interval, 650); assert.equal(profile.range, 430);
+  }
 });

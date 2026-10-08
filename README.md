@@ -60,7 +60,7 @@ Base values before any stat modifiers:
 | --- | --- | --- | --- |
 | Pistol | 1 | 450 ms | Starting weapon; single focused shot |
 | Machine gun | 1 | 210 ms | Fast, focused fire |
-| Shotgun | 2 | 650 ms | Three spread pellets; 430-pixel range |
+| Shotgun | 2 | 650 ms | 3/5/7 pellets by level; 430-pixel range |
 | Rocket launcher | 8 | 1,100 ms | Slower projectile; 95-pixel splash radius |
 
 Rockets can damage multiple nearby enemies, obstacles, and the boss. Each projectile retains the damage and behavior it had when fired, even after a weapon switch.
@@ -74,7 +74,7 @@ A first pickup unlocks a weapon at Level 1. Collecting the equipped weapon again
 | Weapon | Level 1 | Level 2 | Level 3 |
 | --- | --- | --- | --- |
 | Machine gun | 210 ms between volleys | 175 ms | 145 ms |
-| Shotgun | 0.07-radian spread (narrow) | 0.105-radian spread (medium) | 0.14-radian spread (wide) |
+| Shotgun | 3 pellets, 0.07-radian spread (narrow) | 5 pellets, 0.105-radian spread (medium) | 7 pellets, 0.14-radian spread (wide) |
 | Rocket launcher | 95-pixel blast radius | 115 pixels | 135 pixels |
 
 Damage bonuses from stage-clear choices remain separate and apply at every weapon level. Projectiles already in flight retain the stats they were fired with.
@@ -209,3 +209,5 @@ No formal license is currently included in this repository.
 ### Mobile polish
 
 The mobile status bar shows weapon level, troop count, player HP, and boss HP / dodge countdown at readable text sizes. Squad hits flash the soldiers and show a larger troop-loss message. Boss warnings keep their original duration if the boss enrages mid-attack. Decorative debris is capped at 80 live particles; projectile damage and enemy counts are unaffected.
+
+Weapon levels also brighten machine-gun tracers and deepen its firing sound. Weapon pickups play an ascending chime and show the equipped level in the mobile banner. Rocket explosions display an expanding ring that reaches their actual splash radius (95/115/135 pixels).

@@ -51,10 +51,11 @@ export class CombatAudio {
     source.stop(ctx.currentTime + duration + 0.01);
   }
 
-  fire(weapon: WeaponId) {
+  fire(weapon: WeaponId, level = 1) {
+    const strength = Math.max(0, Math.min(2, level - 1));
     switch (weapon) {
       case 'pistol': this.voice(800, 110, 0.09, 0.5); this.voice(4000, 1, 0.045, 0.4, true); break;
-      case 'machine-gun': this.voice(550, 90, 0.065, 0.4); this.voice(3200, 1, 0.06, 0.45, true); break;
+      case 'machine-gun': this.voice(550 - strength * 65, 90, 0.065 + strength * 0.01, 0.4 + strength * 0.04); this.voice(3200 + strength * 350, 1, 0.06, 0.45, true); break;
       case 'shotgun': this.voice(150, 40, 0.22, 0.7); this.voice(2400, 1, 0.2, 0.8, true); break;
       case 'rocket-launcher': this.voice(210, 45, 0.3, 0.6); this.voice(700, 1, 0.32, 0.7, true); break;
     }
@@ -67,6 +68,8 @@ export class CombatAudio {
     if (explosion) { this.voice(95, 25, 0.4, 0.9); this.voice(900, 1, 0.35, 0.8, true); }
     else this.voice(armored ? 1800 : 180, armored ? 400 : 55, 0.07, 0.22);
   }
+
+  upgrade(level: number) { this.voice(440 + level * 110, 1100 + level * 110, 0.3, 0.45); }
 
   warning() { this.voice(660, 880, 0.2, 0.4); }
   strike() { this.voice(100, 25, 0.35, 0.8); this.voice(650, 1, 0.25, 0.6, true); }

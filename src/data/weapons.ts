@@ -17,8 +17,9 @@ export function weaponProfile(id: WeaponId, levels: WeaponLevels) {
   const base = WEAPONS[id];
   const level = Math.max(1, weaponLevel(levels, id));
   return { ...base,
+    color: id === 'machine-gun' ? [0xffe195, 0xffefbb, 0xfffbea][level - 1] : base.color,
     interval: id === 'machine-gun' ? [210, 175, 145][level - 1] : base.interval,
-    angles: id === 'shotgun' ? [-1, 0, 1].map(angle => angle * [0.07, 0.105, 0.14][level - 1]) : [...base.angles],
+    angles: id === 'shotgun' ? Array.from({ length: level * 2 + 1 }, (_, index) => (index - level) / level * [0.07, 0.105, 0.14][level - 1]) : [...base.angles],
     splash: id === 'rocket-launcher' ? [95, 115, 135][level - 1] : base.splash,
   };
 }
