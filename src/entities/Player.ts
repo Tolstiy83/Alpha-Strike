@@ -12,7 +12,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   setTouchTarget(x?: number) {
     this.touchTarget = x;
-    if (x === undefined) this.setVelocityX(0);
+    // Scene shutdown can remove the physics body before touch controls clean up.
+    if (x === undefined && this.body) this.setVelocityX(0);
   }
 
   constructor(scene: Phaser.Scene, x: number, y: number) {

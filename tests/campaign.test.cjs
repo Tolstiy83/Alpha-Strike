@@ -376,7 +376,7 @@ test('difficulty menu cycles through all modes and starts the selected difficult
 test('touch movement respects speed limits, stops on release, and keeps keyboard control', () => {
   const { Player } = load('src/entities/Player.ts');
   const player = Object.create(Player.prototype);
-  Object.assign(player, { x: 400, moveSpeed: 400, cursors: { left: {}, right: {} }, wasd: { left: {}, right: {} }, setVelocityX(x) { this.vx = x; } });
+  Object.assign(player, { x: 400, body: {}, moveSpeed: 400, cursors: { left: {}, right: {} }, wasd: { left: {}, right: {} }, setVelocityX(x) { this.vx = x; } });
   player.setTouchTarget(700); player.update(16); assert.equal(player.vx, 400);
   player.setTouchTarget(100); player.update(16); assert.equal(player.vx, -400);
   player.setTouchTarget(401); player.update(20); assert.equal(player.vx, 50);
@@ -414,4 +414,15 @@ test('touch pad handles scaling, extra fingers, cancellation, bonuses, and clean
   rewards.children[1].onclick(); assert.equal(state.selected, 'troop'); assert.equal(next.disabled, false);
   next.onclick(); assert.ok(advanced);
   controls.destroy(); assert.ok(rootEl.removed); assert.equal(listeners.size, 0);
+});
+
+
+test('touch cleanup is safe after Phaser destroys the player physics body', () => {
+  const { Player } = load('src/entities/Player.ts');
+  const player = Object.create(Player.prototype);
+  player.touchTarget = 600;
+  player.body = undefined;
+  player.setVelocityX = () => { throw new Error('Destroyed physics body accessed'); };
+  assert.doesNotThrow(() => player.setTouchTarget());
+  assert.equal(player.touchTarget, undefined);
 });
