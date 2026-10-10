@@ -59,14 +59,27 @@ export function createWeaponTextures(scene: Phaser.Scene) {
         g.fillStyle(0x394b40); g.fillRoundedRect(13, 55, 16, 9, 2);
         g.fillStyle(0x182128); g.fillRect(12, 62, 18, 3);
       } else {
-        g.fillStyle(0x26351f); g.fillRoundedRect(9, top, 23, 58, 5);
-        g.fillStyle(0x7f9650); g.fillRoundedRect(11, top + 4, 19, 49, 4);
-        g.fillStyle(0xc5d58a); g.fillRect(13, top + 7, 4, 41);
-        g.fillStyle(0xd6b354); g.fillRect(10, top + 17, 21, 4); g.fillRect(10, top + 40, 21, 4);
-        g.fillStyle(0x35413b); g.fillEllipse(20, top + 3, 29, 10);
-        g.fillStyle(0x0d1519); g.fillEllipse(20, top + 2, 21, 6);
-        g.fillStyle(0x202d30); g.fillRect(29, top + 22, 7, 13); g.fillRect(7, 59, 27, 6);
-        g.fillStyle(0x92cdd9); g.fillRect(31, top + 23, 3, 5);
+        // RPG silhouette: oversized pointed warhead, slender tube and flared exhaust.
+        g.fillStyle(0x263329); g.fillRoundedRect(16, top + 20, 9, 37, 2);
+        g.fillStyle(0x91a37b); g.fillRect(17, top + 23, 2, 30);
+        g.fillStyle(0x80603c); g.fillRoundedRect(14, top + 30, 13, 17, 2);
+        g.fillStyle(0xbe9156); g.fillRect(16, top + 31, 3, 14);
+        g.fillStyle(0x526338);
+        g.fillPoints([new Phaser.Math.Vector2(20, top), new Phaser.Math.Vector2(29, top + 13),
+          new Phaser.Math.Vector2(27, top + 22), new Phaser.Math.Vector2(23, top + 27),
+          new Phaser.Math.Vector2(17, top + 27), new Phaser.Math.Vector2(13, top + 22),
+          new Phaser.Math.Vector2(11, top + 13)], true);
+        g.fillStyle(0xaabb72);
+        g.fillPoints([new Phaser.Math.Vector2(20, top + 2), new Phaser.Math.Vector2(16, top + 14),
+          new Phaser.Math.Vector2(17, top + 22), new Phaser.Math.Vector2(20, top + 24)], true);
+        g.fillStyle(0xd1b25b); g.fillRect(13, top + 18, 14, 3);
+        g.fillStyle(0x263039); g.fillRect(25, top + 28, 8, 5); g.fillRect(29, top + 24, 5, 10);
+        g.fillStyle(0x99cbd0); g.fillRect(30, top + 25, 3, 3);
+        g.fillStyle(0x523b28); g.fillRect(25, top + 43, 6, 10);
+        g.fillStyle(0x37473a);
+        g.fillPoints([new Phaser.Math.Vector2(16, 57), new Phaser.Math.Vector2(25, 57),
+          new Phaser.Math.Vector2(30, 64), new Phaser.Math.Vector2(11, 64)], true);
+        g.fillStyle(0x151f24); g.fillEllipse(20, 64, 21, 5);
       }
       g.generateTexture(key, 40, 68); g.destroy();
     }
