@@ -98,7 +98,7 @@ function sceneForStage(stage) {
   Object.assign(scene, { menu() {}, stage, playerHealth: 40, score: 8000, equippedWeapon: 'rocket-launcher',
     weaponStats: { damage: 2, fireRate: 250 }, player: ui(), waveText: ui(),
     troopSystem: { getTroops: () => [], getTroopCount: () => 0 },
-    time: { removeAllEvents() {} }, upgradeContainers: { getChildren: () => [] }, upgradeCards: { clear() {} },
+    time: { removeAllEvents() {} }, upgradeContainers: { getChildren: () => [] }, upgradeCards: { getChildren: () => [], clear() {} },
     add: { rectangle: ui, text: ui }, scene: { restart: carry => restarts.push(plain(carry)) } });
   return { scene, restarts };
 }
@@ -257,7 +257,7 @@ test('weapon levels improve their signature behavior without changing base defin
   const { WEAPONS, weaponProfile } = load('src/data/weapons.ts');
   for (const id of ['machine-gun', 'shotgun', 'rocket-launcher']) {
     const first = weaponProfile(id, { [id]: 1 }); const third = weaponProfile(id, { [id]: 3 });
-    assert.equal(first.damage, third.damage);
+    assert.ok(third.damage > first.damage);
     if (id === 'machine-gun') { assert.equal(first.interval, 210); assert.equal(third.interval, 145); }
     if (id === 'shotgun') { assert.equal(third.angles.length, 7); assert.ok(Math.abs(third.angles[0]) > Math.abs(first.angles[0])); }
     if (id === 'rocket-launcher') { assert.equal(first.splash, 95); assert.equal(third.splash, 135); }
@@ -462,6 +462,17 @@ test('shotgun upgrades add symmetric pellets across increasingly wide spreads', 
     assert.equal(profile.angles.length, level * 2 + 1);
     assert.equal(profile.angles[level], 0);
     for (let i = 0; i < level; i++) assert.equal(profile.angles[i], -profile.angles[profile.angles.length - 1 - i]);
-    assert.equal(profile.damage, 2); assert.equal(profile.interval, 650); assert.equal(profile.range, 430);
+    assert.equal(profile.damage, [2, 2.4, 2.8][level - 1]); assert.equal(profile.interval, 650); assert.equal(profile.range, 430);
   }
+});
+
+
+test('automatic weapon pickup applies once and pending weapons survive stage transitions', () => {
+  const scene = new GameScene(); const applied = [];
+  scene.applyUpgrade = id => applied.push(id);
+  const weapon = { active: true, upgradeId: 'shotgun', destroy() { this.active = false; } };
+  const troop = { active: true, upgradeId: 'add-troop', destroy() { this.active = false; } };
+  scene.upgradeCards = { getChildren: () => [weapon, troop] };
+  scene.collectPendingWeapons(); scene.collectPendingWeapons(); scene.collectUpgradeCard(weapon);
+  assert.deepEqual(applied, ['shotgun']); assert.equal(troop.active, true);
 });

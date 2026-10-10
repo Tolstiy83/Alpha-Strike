@@ -45,6 +45,30 @@ export function createBattlefieldTextures(scene: Phaser.Scene) {
   g.fillStyle(0xe0e6dc); g.fillRect(11, 3, 5, 37); g.fillRect(44, 3, 5, 37);
   g.fillStyle(0xffd178); g.fillRect(23, 17, 14, 10);
   g.lineStyle(2, 0xffffff); g.strokeRoundedRect(1, 1, 58, 42, 4); save('upgrade-container', 60, 45);
+  // Horizontal axle: visible staves pass downward over the curved surface.
+  for (let frame = 0; frame < 16; frame++) {
+    g.fillStyle(0x171a1c, 0.3); g.fillEllipse(40, 69, 76, 16);
+    g.fillStyle(0x51331c); g.fillRoundedRect(3, 9, 74, 60, 15);
+    g.fillStyle(0xb87937); g.fillRoundedRect(7, 12, 66, 53, 10);
+    g.fillStyle(0xe3ab62, 0.5); g.fillRoundedRect(9, 19, 62, 18, 7);
+    const phase = frame / 16 * Math.PI * 2;
+    for (let stave = 0; stave < 8; stave++) {
+      const angle = phase + stave * Math.PI / 4;
+      if (Math.cos(angle) <= 0) continue;
+      const y = 39 + Math.sin(angle) * 26;
+      g.lineStyle(2, 0x694021); g.lineBetween(9, y, 71, y);
+    }
+    // The gold marker wraps over the top and disappears under the barrel.
+    if (Math.cos(phase) > 0) {
+      g.fillStyle(0xffd477); g.fillEllipse(40, 39 + Math.sin(phase) * 26, 18, 12 * Math.cos(phase));
+    }
+    for (const x of [12, 61]) {
+      g.fillStyle(0x52616a); g.fillRoundedRect(x, 10, 8, 58, 3);
+      g.fillStyle(0xc1ced0); g.fillRect(x + 1, 19, 3, 32);
+      g.fillStyle(0x313b42); g.fillCircle(x + 4, 17, 2); g.fillCircle(x + 4, 59, 2);
+    }
+    save(frame === 0 ? 'weapon-barrel' : 'weapon-barrel-' + frame, 80, 80);
+  }
   g.fillStyle(0x174e8b); g.fillRoundedRect(0, 0, 40, 55, 4);
   g.fillStyle(0x44bdff, 0.7); g.fillRoundedRect(3, 3, 34, 49, 3);
   g.lineStyle(2, 0xc6f6ff); g.strokeRoundedRect(2, 2, 36, 51, 3); save('upgrade-card', 40, 55);

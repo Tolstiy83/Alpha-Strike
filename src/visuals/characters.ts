@@ -58,6 +58,7 @@ export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: 
       // Troops use interpolated positions, so displacement also drives their steps.
       const distance = Math.hypot(actor.x - v.lastX, actor.y - v.lastY);
       v.lastX = actor.x; v.lastY = actor.y;
+      const recruitAlpha = scene.time.now < (actor.getData('recruitUntil') ?? 0) ? 0 : actor.alpha;
       const deathAt = actor.getData('deathAt') as number | undefined;
       const moving = actor.body?.enable && deathAt === undefined && distance > 0.04;
       const dt = Math.min(delta || 16, 50);
@@ -82,17 +83,17 @@ export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: 
           .setAngle(direction * stride * (v.heavy ? 5 : 9) + death * 30).setDepth(depth);
       });
       for (const part of [v.torso, ...v.legs]) {
-        part.setAlpha(actor.alpha * (1 - death));
+        part.setAlpha(recruitAlpha * (1 - death));
         if (hit) part.setTint(0xffefcb).setTintMode(Phaser.TintModes.FILL);
         else part.setTintMode(Phaser.TintModes.MULTIPLY).setTint(actor.texture.key === 'boss' && actor.tintTopLeft !== 0xffffff ? 0xffb49e : v.tint);
       }
       if (v.gun) {
         if (v.gun.texture.key !== 'held-' + weapon.id) v.gun.setTexture('held-' + weapon.id);
         v.gun.setPosition(actor.x + 8, actor.y - 52 + recoil * (weapon.id === 'rocket-launcher' ? 5 : 3))
-          .setAngle(stride * 1.5).setDepth(depth + 0.004).setAlpha(actor.alpha);
+          .setAngle(stride * 1.5).setDepth(depth + 0.004).setAlpha(recruitAlpha);
         v.gun.setTint(weapon.level === 3 ? 0xffe3a0 : weapon.level === 2 ? 0xc5eaff : 0xffffff);
       }
-      v.shadow.setPosition(actor.x + 5, actor.y + 12).setDepth(depth - 1).setAlpha(actor.alpha * (1 - death));
+      v.shadow.setPosition(actor.x + 5, actor.y + 12).setDepth(depth - 1).setAlpha(recruitAlpha * (1 - death));
     }
   };
   scene.events.on(Phaser.Scenes.Events.POST_UPDATE, render);

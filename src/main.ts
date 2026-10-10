@@ -427,7 +427,7 @@ class GameScene extends Phaser.Scene {
       const warning = this.boss?.active && this.bossWarningText ? ' • DODGE ' + ((1 - this.boss.attackProgress) * this.boss.windupDuration / 1000).toFixed(1) + 's' : '';
       this.mobileHud.update(WEAPONS[this.equippedWeapon].name + ' Lv ' + weaponLevel(this.weaponLevels, this.equippedWeapon) +
         ' • Troops ' + this.troopSystem.getTroopCount() + ' • HP ' + this.playerHealth,
-        this.boss?.active && this.boss.health > 0 ? 'BOSS ' + this.boss.health + '/' + this.boss.maxHealth + warning : this.runLabel + ' • ' + this.difficulty.toUpperCase(), this.time.now);
+        this.boss?.active && this.boss.health > 0 ? 'BOSS ' + Math.ceil(this.boss.health) + '/' + this.boss.maxHealth + warning : this.runLabel + ' • ' + this.difficulty.toUpperCase(), this.time.now);
     }
     if (this.menuOpen || this.isGameOver || this.stageFinished) {
       return;
@@ -494,6 +494,13 @@ class GameScene extends Phaser.Scene {
         child as UpgradeCard;
 
       if (card.active) {
+        if (card.upgradeId === 'machine-gun' || card.upgradeId === 'shotgun' || card.upgradeId === 'rocket-launcher') {
+          const dx = this.player.x - card.x, dy = this.player.y - card.y;
+          const distance = Math.hypot(dx, dy);
+          const step = 1100 * Math.min(delta, 50) / 1000;
+          if (distance <= Math.max(24, step)) { this.collectUpgradeCard(card); continue; }
+          card.setVelocity(dx / distance * 1100, dy / distance * 1100);
+        }
         card.update();
         if (card.upgradeId === 'machine-gun' || card.upgradeId === 'shotgun' || card.upgradeId === 'rocket-launcher') {
           card.setRewardLabel(UPGRADES[card.upgradeId].cardLabel + '\nLV ' +
@@ -620,14 +627,19 @@ class GameScene extends Phaser.Scene {
   private updateRoad(delta: number) {
     for (const child of [...this.upgradeContainers.getChildren()]) {
       const container = child as UpgradeContainer;
+      container.updateHealthLabel();
       const icon = container.getData('weaponIcon') as Phaser.GameObjects.Image | undefined;
-      icon?.setPosition(container.x, container.y);
+      icon?.setPosition(container.x, container.y - 62);
+      {
+        const frame = ((Math.floor(container.y / 10) % 16) + 16) % 16;
+        const texture = frame === 0 ? 'weapon-barrel' : 'weapon-barrel-' + frame;
+        if (container.texture.key !== texture) container.setTexture(texture);
+      }
       const label = container.getData('choiceLabel') as Phaser.GameObjects.Text;
       if (label?.active) {
         label.setPosition(container.x, container.y - 80);
         label.setText(this.rewardTitle(container.upgradeId) + '\n' +
-          (container.upgradeId === 'add-troop' ? 'BARRICADE ' : 'ARMORED CRATE ') +
-          container.health + '/' + container.maxHealth);
+          (container.upgradeId === 'add-troop' ? 'TROOP BARREL' : 'WEAPON BARREL'));
       }
       if (container.y > this.scale.height + 50) {
         this.removeContainerLabel(container);
@@ -668,6 +680,7 @@ class GameScene extends Phaser.Scene {
     if (this.stageElapsed >= 55000 && this.enemiesAlive === 0) {
       this.bossStarted = true;
       this.removeOtherUpgradeChoices();
+      this.collectPendingWeapons();
       this.upgradeCards.clear(true, true);
       this.waveText.setText(this.runLabel + ' • BOSS');
       this.beginBossWave();
@@ -821,6 +834,13 @@ class GameScene extends Phaser.Scene {
     );
 
     container.destroy();
+    if (upgradeId === 'add-troop') {
+      combatBurst(this, x, y, 0x99ff99, true);
+      this.applyUpgrade(upgradeId);
+      this.animateRecruit(x, y);
+      this.mobileHud?.hit('+1 TROOP JOINED', this.time.now);
+      return;
+    }
 
     const card = new UpgradeCard(
       this,
@@ -831,8 +851,38 @@ class GameScene extends Phaser.Scene {
 
     this.upgradeCards.add(card);
 
-    card.setVelocityY(60);
+    card.setVelocityY(0);
+    if (upgradeId === 'machine-gun' || upgradeId === 'shotgun' || upgradeId === 'rocket-launcher') {
+      card.setTexture('held-' + upgradeId).setScale(1.2).setDepth(30);
+      combatBurst(this, x, y, 0xffd477, true);
+    }
 
+  }
+
+  private animateRecruit(x: number, y: number) {
+    const troop = this.troopSystem.getTroops().at(-1);
+    if (!troop) return;
+    const duration = 450;
+    troop.setData('recruitUntil', this.time.now + duration);
+    const glow = this.add.circle(0, -30, 30, 0x6ee7b7, 0.25);
+    const torso = this.add.image(0, -35, 'character-art', 'survivor-torso').setDisplaySize(42, 50).setOrigin(0.5, 1);
+    const left = this.add.image(-10, -35, 'character-art', 'survivor-left').setDisplaySize(21, 42).setOrigin(0.5, 0);
+    const right = this.add.image(10, -35, 'character-art', 'survivor-right').setDisplaySize(21, 42).setOrigin(0.5, 0);
+    const recruit = this.add.container(x, y, [glow, torso, left, right]).setDepth(80);
+    const motion = { progress: 0 };
+    const flight = this.tweens.add({ targets: motion, progress: 1, duration, ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        if (!troop.active) return;
+        const p = motion.progress;
+        recruit.setPosition(x + (troop.x - x) * p, y + (troop.y - y) * p - Math.sin(p * Math.PI) * 65);
+        recruit.setScale(0.65 + p * 0.35);
+      },
+      onComplete: () => {
+        recruit.destroy();
+        if (troop.active) { troop.setData('recruitUntil', 0); combatBurst(this, troop.x, troop.y, 0x6ee7b7); }
+      },
+    });
+    troop.once('destroy', () => { flight.stop(); recruit.destroy(); });
   }
 
   private removeContainerLabel(
@@ -872,9 +922,9 @@ class GameScene extends Phaser.Scene {
 
   private handlePlayerCardCollision:
   Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-    (_playerObject, cardObject) => {
-      const card =
-        cardObject as UpgradeCard;
+    (_playerObject, cardObject) => this.collectUpgradeCard(cardObject as UpgradeCard);
+
+  private collectUpgradeCard(card: UpgradeCard) {
 
       // Prevent the same card from being collected twice
       if (!card.active) {
@@ -1130,7 +1180,7 @@ class GameScene extends Phaser.Scene {
     this.squadText.setColor(troops > 0 ? '#6ee7b7' : '#ff8a80');
     this.weaponStatsText.setText([
       WEAPONS[this.equippedWeapon].name.toUpperCase() + ' • LV ' + weaponLevel(this.weaponLevels, this.equippedWeapon),
-      `Damage: ${WEAPONS[this.equippedWeapon].damage + this.weaponStats.damage - 1}`,
+      `Damage: ${Number((weaponProfile(this.equippedWeapon, this.weaponLevels).damage + this.weaponStats.damage - 1).toFixed(2))}`,
       `Fire Rate: ${Math.round(weaponProfile(this.equippedWeapon, this.weaponLevels).interval * this.weaponStats.fireRate / 250)}ms`,
 
     ]);
@@ -1138,10 +1188,12 @@ class GameScene extends Phaser.Scene {
 
   private spawnUpgradeObstacle(upgradeId: UpgradeId) {
     const troopReward = upgradeId === 'add-troop';
-    this.showUpgradeNotification(troopReward ? 'TROOP BARRICADE' : 'WEAPON CRATE',
-      troopReward ? 'Right lane • Break it to recruit' : 'Left lane • Break it to upgrade');
+    this.showUpgradeNotification(troopReward ? 'TROOP BARREL' : 'WEAPON BARREL',
+      troopReward ? 'Right lane • Break for an instant troop' : 'Left lane • Break for automatic pickup');
+    const rewardLevel = upgradeId === 'machine-gun' || upgradeId === 'shotgun' || upgradeId === 'rocket-launcher'
+      ? weaponLevel(collectWeapon(this.weaponLevels, this.equippedWeapon, upgradeId), upgradeId) : 1;
     const container = new UpgradeContainer(this,
-      this.scale.width * (troopReward ? 0.8 : 0.2), -40, upgradeId);
+      this.scale.width * (troopReward ? 0.8 : 0.2), -40, upgradeId, rewardLevel);
     this.upgradeContainers.add(container);
     container.setVelocityY(70);
     this.createUpgradeChoiceLabel(container);
@@ -1294,7 +1346,16 @@ class GameScene extends Phaser.Scene {
     this.bonusPrompt?.setText('Selected: ' + descriptions[bonus] + '\nSPACE: ' + (this.endlessRound ? 'Endless round ' + (this.endlessRound + 1) : 'Enter ' + STAGES[this.stage].name));
   }
 
+  private collectPendingWeapons() {
+    // Secure earned weapons if the stage ends while they are flying to the player.
+    for (const child of [...this.upgradeCards.getChildren()]) {
+      const card = child as UpgradeCard;
+      if (card.active && (card.upgradeId === 'machine-gun' || card.upgradeId === 'shotgun' || card.upgradeId === 'rocket-launcher')) this.collectUpgradeCard(card);
+    }
+  }
+
   private completeStage() {
+    this.collectPendingWeapons();
     this.stageFinished = true;
     this.clearBossWarning();
     this.time.removeAllEvents();

@@ -80,7 +80,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   takeDamage(amount: number) {
     if (!this.active || this.health <= 0) return false;
     this.setData('hitUntil', this.scene.time.now + 90);
-    this.health = Math.max(0, this.health - amount);
+    this.health = Math.max(0, Number((this.health - amount).toFixed(2)));
     if (this.health === 0) {
       this.setVelocity(0, 0);
       (this.body as Phaser.Physics.Arcade.Body).enable = false;

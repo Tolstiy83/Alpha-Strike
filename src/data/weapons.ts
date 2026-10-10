@@ -17,6 +17,7 @@ export function weaponProfile(id: WeaponId, levels: WeaponLevels) {
   const base = WEAPONS[id];
   const level = Math.max(1, weaponLevel(levels, id));
   return { ...base,
+    damage: id === 'pistol' ? base.damage : Number((base.damage * (1 + (level - 1) * 0.2)).toFixed(2)),
     color: id === 'machine-gun' ? [0xffe195, 0xffefbb, 0xfffbea][level - 1] : base.color,
     interval: id === 'machine-gun' ? [210, 175, 145][level - 1] : base.interval,
     angles: id === 'shotgun' ? Array.from({ length: level * 2 + 1 }, (_, index) => (index - level) / level * [0.07, 0.105, 0.14][level - 1]) : [...base.angles],

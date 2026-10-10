@@ -18,13 +18,13 @@ The stationary battlefield has three lanes:
 
 | Lane | Targets | Reward |
 | --- | --- | --- |
-| Left | Armored weapon crates | Machine gun, shotgun, or rocket launcher |
+| Left | Rolling weapon barrels | Machine gun, shotgun, or rocket launcher |
 | Middle | Dense enemy formations and bosses | Score and stage completion |
 | Right | Troop barricades | +1 soldier |
 
-Shoot an obstacle until it breaks, then collect the released card. Weapon crates have 24 health and troop barricades have 10; your weapon's damage affects how quickly they break. Rewards are independent: destroying one obstacle does not remove another. Missed obstacles and cards leave the screen.
+Shoot an obstacle until it breaks, then collect the released card. Weapon crates have 24 health and troop barrels have 10; your weapon's damage affects how quickly they break. Rewards are independent: destroying one obstacle does not remove another. Missed obstacles and cards leave the screen.
 
-Weapon crates arrive at 6 and 29 seconds; troop barricades arrive at 17 and 41 seconds. Crates advertise their reward and remaining health. Weapon rewards are randomly selected from the three unlockable weapons. Your equipped weapon can appear again until it reaches Level 3; other weapons remain available for switching. Crates show NEW WEAPON, UPGRADE TO LV 2/3, or SWITCH with the saved level.
+Weapon crates arrive at 6 and 29 seconds; troop barrels arrive at 17 and 41 seconds. Crates advertise their reward and remaining health. Weapon rewards are randomly selected from the three unlockable weapons. Your equipped weapon can appear again until it reaches Level 3; other weapons remain available for switching. Crates show NEW WEAPON, UPGRADE TO LV 2/3, or SWITCH with the saved level.
 
 ## Controls
 
@@ -127,7 +127,7 @@ All three bosses become faster below half health, award 2,000 points on defeat, 
 
 After defeating the third campaign boss, press **E** to enter endless survival, or use the restart/menu buttons. Your surviving troops, health, weapon, and upgrades carry into endless; its score starts at zero.
 
-Each round runs six encounters and the usual two weapon crates and two troop barricades, then a boss. Environments and boss styles cycle through desert/melee, city/ranged, and industrial/lane sweep. Every cleared round offers the same fire-rate, troop, or damage choice; select one and press Space to continue indefinitely. After defeat, restart endless from the results screen or return to the main menu.
+Each round runs six encounters and the usual two weapon barrels and two troop barrels, then a boss. Environments and boss styles cycle through desert/melee, city/ranged, and industrial/lane sweep. Every cleared round offers the same fire-rate, troop, or damage choice; select one and press Space to continue indefinitely. After defeat, restart endless from the results screen or return to the main menu.
 
 Enemy health grows 12% of the Stage 3 baseline per round. Speed and formation size also increase, with caps on movement speed and crowd size. Boss health grows from a 900-health baseline by 18% per round; recovery between strikes shortens while dodge countdowns remain unchanged.
 
@@ -151,7 +151,7 @@ The HUD shows your **best endless wave reached** and **best endless score**, tra
 
 Character motion uses jointed cutout animation from the existing atlas: alternating leg swings, body weight shifts, faster Runner steps, and heavier Tank/boss strides. Squad footwork follows actual sideways movement and settles when stationary. This is procedural 2D animation rather than a new frame-by-frame sprite sheet.
 
-Each squad member displays the equipped weapon with its own silhouette, recoil, barrel-aligned muzzle flash, and projectile shape. Machine guns and shotguns eject casings; weapon crates display matching gun icons. Level 2/3 weapons receive cool-metal/gold highlights.
+Each squad member displays the equipped weapon with its own silhouette, recoil, barrel-aligned muzzle flash, and projectile shape. Machine guns and shotguns eject casings; weapon barrels display matching gun icons. Level 2/3 weapons receive cool-metal/gold highlights.
 
 ## Run locally
 
@@ -211,3 +211,9 @@ No formal license is currently included in this repository.
 The mobile status bar shows weapon level, troop count, player HP, and boss HP / dodge countdown at readable text sizes. Squad hits flash the soldiers and show a larger troop-loss message. Boss warnings keep their original duration if the boss enrages mid-attack. Decorative debris is capped at 80 live particles; projectile damage and enemy counts are unaffected.
 
 Weapon levels also brighten machine-gun tracers and deepen its firing sound. Weapon pickups play an ascending chime and show the equipped level in the mobile banner. Rocket explosions display an expanding ring that reaches their actual splash radius (95/115/135 pixels).
+
+Weapon barrels roll down the left lane with 24/30/36 HP for Level 1/2/3 rewards, determined when the barrel spawns. Breaking one releases a weapon that homes toward the player and equips automatically on arrival; troop barrels immediately add a soldier to the formation when broken. Earned weapons are secured if the stage ends during pickup flight.
+
+Troop barrels roll down the right lane with an upright 10-HP countdown. Destroying one recruits a soldier immediately without a card pickup.
+
+Weapon damage increases by level: machine gun 1/1.2/1.4, shotgun 2/2.4/2.8 per pellet, and rocket launcher 8/9.6/11.2. Stage damage bonuses are added afterward. The starting pistol stays at 1 damage.
