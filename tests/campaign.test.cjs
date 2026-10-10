@@ -476,3 +476,17 @@ test('automatic weapon pickup applies once and pending weapons survive stage tra
   scene.collectPendingWeapons(); scene.collectPendingWeapons(); scene.collectUpgradeCard(weapon);
   assert.deepEqual(applied, ['shotgun']); assert.equal(troop.active, true);
 });
+
+
+test('weapon action frames recover after firing and muzzle positions match barrel lengths', () => {
+  const { weaponAnimation, weaponMuzzle, WEAPON_LENGTH, WEAPON_SCALE } = load('src/visuals/weapons.ts');
+  assert.equal(weaponAnimation('shotgun', 200).texture, 'held-shotgun-action');
+  assert.equal(weaponAnimation('shotgun', 400).texture, 'held-shotgun');
+  assert.equal(weaponAnimation('pistol', 30).texture, 'held-pistol-action');
+  assert.equal(weaponAnimation('pistol', 100).texture, 'held-pistol');
+  for (const id of Object.keys(WEAPON_LENGTH)) {
+    assert.equal(weaponAnimation(id, -1000).recoil, 0);
+    assert.equal(weaponAnimation(id, 1200).recoil, 0);
+    assert.equal(weaponMuzzle(400, 680, id).y, 680 - 52 - WEAPON_LENGTH[id] * WEAPON_SCALE);
+  }
+});

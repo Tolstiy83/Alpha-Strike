@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Enemy } from '../entities/Enemy';
 import { type WeaponId } from '../data/weapons';
-import { createWeaponTextures, WEAPON_SCALE } from './weapons';
+import { createWeaponTextures, weaponAnimation, WEAPON_SCALE } from './weapons';
 
 /** Art-only cutout joints: physics footprints and movement remain on the original sprites. */
 export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: WeaponId; level: number }) {
@@ -88,8 +88,9 @@ export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: 
         else part.setTintMode(Phaser.TintModes.MULTIPLY).setTint(actor.texture.key === 'boss' && actor.tintTopLeft !== 0xffffff ? 0xffb49e : v.tint);
       }
       if (v.gun) {
-        if (v.gun.texture.key !== 'held-' + weapon.id) v.gun.setTexture('held-' + weapon.id);
-        v.gun.setPosition(actor.x + 8, actor.y - 52 + recoil * (weapon.id === 'rocket-launcher' ? 5 : 3))
+        const animation = weaponAnimation(weapon.id, shotAgo);
+        if (v.gun.texture.key !== animation.texture) v.gun.setTexture(animation.texture);
+        v.gun.setPosition(actor.x + 8, actor.y - 52 + animation.recoil)
           .setAngle(stride * 1.5).setDepth(depth + 0.004).setAlpha(recruitAlpha);
         v.gun.setTint(weapon.level === 3 ? 0xffe3a0 : weapon.level === 2 ? 0xc5eaff : 0xffffff);
       }

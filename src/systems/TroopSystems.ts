@@ -12,7 +12,7 @@ export class TroopSystem {
   private troopSpacingX = 30;
   private troopSpacingY = 36;
 
-  private troopsPerRow = 4;
+  private troopsPerRow = 5;
 
   constructor(
     scene: Phaser.Scene,

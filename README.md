@@ -46,7 +46,7 @@ On phones and narrow screens, drag the pad below the battlefield to move. Shooti
 
 - Start a new campaign with a pistol, two supporting troops, and 100 health.
 - Every soldier fires the equipped weapon; weapon pickups equip the whole squad.
-- Troops follow in a compact formation of up to four soldiers per row and reform after a casualty.
+- Troops follow in a compact formation of up to five soldiers per row and reform after a casualty.
 - An enemy crossing the player's row counts as a breach, even if it is in another lane.
 - A breach removes one troop first. With no troops remaining, the player takes damage.
 - Breaches and boss attacks share an 800 ms protection window, shown by blinking characters.
