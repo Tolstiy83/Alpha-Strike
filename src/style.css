@@ -54,3 +54,5 @@ canvas { touch-action: none; }
   .mobile-notice { min-height: 20px; color: #ffab91; }
   canvas { width: min(100vw, calc((100dvh - 272px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 0.888889)); }
 }
+
+.build-version { display: block; text-align: center; margin-top: 16px; color: #a9c3d4; font-size: 13px; }

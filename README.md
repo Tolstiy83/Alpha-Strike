@@ -217,3 +217,7 @@ Weapon barrels roll down the left lane with 24/30/36 HP for Level 1/2/3 rewards,
 Troop barrels roll down the right lane with an upright 10-HP countdown. Destroying one recruits a soldier immediately without a card pickup.
 
 Weapon damage increases by level: machine gun 1/1.2/1.4, shotgun 2/2.4/2.8 per pellet, and rocket launcher 8/9.6/11.2. Stage damage bonuses are added afterward. The starting pistol stays at 1 damage.
+
+## Build versions
+
+Run `npm run build` to produce a new versioned release. The first tracked release is 0.1.0; subsequent successful builds increment the patch number (0.1.1, 0.1.2, etc.). Failed builds restore the previous source version. Development server starts do not increment it. The version appears in menus, is recorded with a UTC timestamp in `build-history.json`, and is included in `dist/version.json`. Commit the updated package files, version source, and build history with each release.

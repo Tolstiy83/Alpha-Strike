@@ -1,3 +1,4 @@
+import { GAME_VERSION } from '../data/version';
 export interface MenuAction { label: string; run: () => void; disabled?: boolean }
 /** DOM controls remain responsive while Phaser's whole scene is paused. */
 export function showRunMenu(title: string, detail: string, actions: MenuAction[], shortcut?: (key: string) => void) {
@@ -11,6 +12,8 @@ export function showRunMenu(title: string, detail: string, actions: MenuAction[]
     const button = document.createElement('button'); button.textContent = action.label;
     button.disabled = action.disabled ?? false; button.onclick = action.run; panel.append(button);
   }
+  const version = document.createElement('small'); version.textContent = 'Alpha Strike v' + GAME_VERSION;
+  version.className = 'build-version'; panel.append(version);
   overlay.append(panel); document.body.append(overlay);
   const keyHandler = (event: KeyboardEvent) => {
     if (event.key === 'Tab') {
