@@ -44,8 +44,8 @@ export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: 
       const torso = scene.add.image(object.x, object.y, 'character-art', frame + '-torso').setOrigin(0.5, 1);
       const legs = ['left', 'right'].map(side => scene.add.image(object.x, object.y, 'character-art', frame + '-' + side).setOrigin(0.5, 0));
       const shadow = scene.add.ellipse(object.x, object.y + 12, width * 0.85, 15, 0x121018, 0.35);
-      const tint = kind === 'runner' ? 0xffc06b : kind === 'tank' ? 0xb9a4ed : kind === 'grunt' ? 0xc9dfb0 : 0xffffff;
-      if (kind && kind !== 'grunt') shadow.setStrokeStyle(2, kind === 'runner' ? 0xffbe55 : 0xba94ff, 0.9);
+      const tint = kind === 'runner' ? 0xffaa45 : kind === 'tank' ? 0xc38aff : kind === 'grunt' ? 0x98ed86 : 0xffffff;
+      if (soldier || kind) shadow.setStrokeStyle(2, soldier ? 0x65cfff : kind === 'runner' ? 0xffbe55 : kind === 'tank' ? 0xba94ff : 0x8be27d, 0.8);
       const visual: Visual = { torso, legs, shadow, width, height, hip: f.hip / f.h,
         gun: soldier ? scene.add.image(object.x, object.y, 'held-' + weapon.id).setOrigin(0.5, 64 / 68).setScale(WEAPON_SCALE) : undefined,
         tint, phase: object.x * 0.13 + object.y * 0.07,
@@ -85,7 +85,7 @@ export function installCharacterArt(scene: Phaser.Scene, equipment: () => { id: 
       for (const part of [v.torso, ...v.legs]) {
         part.setAlpha(recruitAlpha * (1 - death));
         if (hit) part.setTint(0xffefcb).setTintMode(Phaser.TintModes.FILL);
-        else part.setTintMode(Phaser.TintModes.MULTIPLY).setTint(actor.texture.key === 'boss' && actor.tintTopLeft !== 0xffffff ? 0xffb49e : v.tint);
+        else part.setTintMode(Phaser.TintModes.MULTIPLY).setTint(v.gun && part === v.torso ? 0x82cfff : actor.texture.key === 'boss' && actor.tintTopLeft !== 0xffffff ? 0xffb49e : v.tint);
       }
       if (v.gun) {
         const animation = weaponAnimation(weapon.id, shotAgo);

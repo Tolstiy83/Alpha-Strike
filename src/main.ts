@@ -738,7 +738,7 @@ class GameScene extends Phaser.Scene {
     bullet.destroy();
     const armored = target instanceof UpgradeContainer || (target instanceof Enemy && target.enemyType === 'tank');
     combatAudio.impact(armored, radius > 0);
-    combatBurst(this, x, y, armored ? 0xbfeaff : 0xffcf80, radius > 0);
+    combatBurst(this, x, y, armored ? 0x8fe8ff : 0xffdf72, radius > 0);
     const targets: (Enemy | UpgradeContainer | Boss)[] = radius ? [
       ...this.enemies.getChildren() as Enemy[],
       ...this.upgradeContainers.getChildren() as UpgradeContainer[],
@@ -764,7 +764,7 @@ class GameScene extends Phaser.Scene {
       const ring = this.add.circle(x, y, radius).setStrokeStyle(4, 0xffe6a3).setDepth(15).setScale(0.2);
       this.tweens.add({ targets: ring, scale: 1, alpha: 0, duration: 280, onComplete: () => ring.destroy() });
     }
-    const impact = this.add.circle(x, y, radius || 10, radius ? 0xff914d : 0xffdc83, 0.65).setDepth(15);
+    const impact = this.add.circle(x, y, radius || 10, radius ? 0xffaf38 : 0xffec96, 0.65).setDepth(15);
     this.tweens.add({targets: impact, alpha: 0, scale: 1.2, duration: radius ? 280 : 100,
       onComplete: () => impact.destroy()});
   }

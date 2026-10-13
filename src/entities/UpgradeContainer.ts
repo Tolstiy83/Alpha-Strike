@@ -30,7 +30,7 @@ export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
         scene.add.existing(this);
         scene.physics.add.existing(this);
         this.setDisplaySize(86, 86);
-        this.setTint(upgradeId === 'add-troop' ? 0x99ff99 : 0xffffff);
+        this.setTint(upgradeId === 'add-troop' ? 0x80ffaa : 0xffe49a);
         {
           this.healthLabel = scene.add.text(x, y, String(Math.ceil(this.health)), {
             fontFamily: 'Arial', fontSize: '40px', fontStyle: 'bold', color: '#ffffff',
@@ -55,7 +55,7 @@ export class UpgradeContainer extends Phaser.Physics.Arcade.Sprite {
 
     this.scene.time.delayedCall(50, () => {
       if (this.active && !this.isBroken) {
-        this.setTint(this.upgradeId === 'add-troop' ? 0x99ff99 : 0xffffff);
+        this.setTint(this.upgradeId === 'add-troop' ? 0x80ffaa : 0xffe49a);
       }
     });
 

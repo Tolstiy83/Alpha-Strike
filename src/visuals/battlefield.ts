@@ -49,8 +49,8 @@ export function createBattlefieldTextures(scene: Phaser.Scene) {
   for (let frame = 0; frame < 16; frame++) {
     g.fillStyle(0x171a1c, 0.3); g.fillEllipse(40, 69, 76, 16);
     g.fillStyle(0x51331c); g.fillRoundedRect(3, 9, 74, 60, 15);
-    g.fillStyle(0xb87937); g.fillRoundedRect(7, 12, 66, 53, 10);
-    g.fillStyle(0xe3ab62, 0.5); g.fillRoundedRect(9, 19, 62, 18, 7);
+    g.fillStyle(0xe3aa3f); g.fillRoundedRect(7, 12, 66, 53, 10);
+    g.fillStyle(0xffda77, 0.5); g.fillRoundedRect(9, 19, 62, 18, 7);
     const phase = frame / 16 * Math.PI * 2;
     for (let stave = 0; stave < 8; stave++) {
       const angle = phase + stave * Math.PI / 4;
@@ -77,29 +77,29 @@ export function createBattlefieldTextures(scene: Phaser.Scene) {
 
 export function drawDesertRoad(scene: Phaser.Scene, city = false, industrial = false) {
   const g = scene.add.graphics().setDepth(-20);
-  g.fillStyle(industrial ? 0x555c60 : city ? 0x777a76 : 0xd4ae76); g.fillRect(0, 0, 800, 900);
+  g.fillStyle(industrial ? 0x537682 : city ? 0x859eab : 0xf0c579); g.fillRect(0, 0, 800, 900);
   for (let i = 0; i < 65; i++) {
     const x = (i * 137) % 800, y = (i * 193) % 900;
-    g.fillStyle(i % 2 ? 0xb68b56 : 0xe7c58e, 0.45);
+    g.fillStyle(i % 2 ? 0xdba04e : 0xffe3a0, 0.45);
     g.fillEllipse(x, y, 26 + i % 24, 7);
   }
-  g.fillStyle(0x6f675d); g.fillPoints([new Phaser.Math.Vector2(115, 0),new Phaser.Math.Vector2(685, 0),new Phaser.Math.Vector2(800, 900),new Phaser.Math.Vector2(0, 900)],true);
-  g.fillStyle(0x363a40); g.fillPoints([new Phaser.Math.Vector2(125, 0),new Phaser.Math.Vector2(675, 0),new Phaser.Math.Vector2(785, 900),new Phaser.Math.Vector2(15, 900)],true);
+  g.fillStyle(0x728e9d); g.fillPoints([new Phaser.Math.Vector2(115, 0),new Phaser.Math.Vector2(685, 0),new Phaser.Math.Vector2(800, 900),new Phaser.Math.Vector2(0, 900)],true);
+  g.fillStyle(0x354f68); g.fillPoints([new Phaser.Math.Vector2(125, 0),new Phaser.Math.Vector2(675, 0),new Phaser.Math.Vector2(785, 900),new Phaser.Math.Vector2(15, 900)],true);
   const project = (x: number, y: number) => 400 + (x - 400) * (0.72 + y / 900 * 0.28);
   for (const x of [65, 260, 540, 735]) {
-    g.lineStyle(x === 65 || x === 735 ? 5 : 8, 0xaca799);
+    g.lineStyle(x === 65 || x === 735 ? 5 : 8, 0xb8d5df);
     g.lineBetween(project(x, 0), 0, project(x, 900), 900);
     g.lineStyle(2, 0x20252c); g.lineBetween(project(x,0)+5,0,project(x,900)+5,900);
   }
   for (let y = 20; y < 900; y += 95) {
-    g.fillStyle(0xe1ddd0,0.7); g.fillRect(398,y,4,30 + y / 60);
+    g.fillStyle(0xffedb3,0.7); g.fillRect(398,y,4,30 + y / 60);
   }
   if (city && !industrial) {
     for (let y = 30; y < 900; y += 120) {
       for (const x of [0, 750]) {
-        g.fillStyle(0x424953); g.fillRect(x, y, 50, 90);
-        g.fillStyle(0x1d252c); g.fillRect(x + 12, y + 12, 12, 20); g.fillRect(x + 30, y + 12, 12, 20);
-        g.fillStyle(0x91958e); g.fillRect(x, y, 50, 6);
+        g.fillStyle(0x446f88); g.fillRect(x, y, 50, 90);
+        g.fillStyle(0x173e5b); g.fillRect(x + 12, y + 12, 12, 20); g.fillRect(x + 30, y + 12, 12, 20);
+        g.fillStyle(0xa2d4d4); g.fillRect(x, y, 50, 6);
       }
     }
   }
@@ -107,13 +107,13 @@ export function drawDesertRoad(scene: Phaser.Scene, city = false, industrial = f
     for (let y = 25; y < 900; y += 145) {
       for (const x of [0, 748]) {
         g.fillStyle(0x292e32); g.fillRect(x, y, 52, 110);
-        g.fillStyle(0x805341); g.fillRect(x + 5, y + 5, 42, 78);
+        g.fillStyle(0xb97c42); g.fillRect(x + 5, y + 5, 42, 78);
         g.lineStyle(3, 0x343b3e);
         for (let line = 12; line < 45; line += 8) g.lineBetween(x + line, y + 8, x + line, y + 78);
-        g.fillStyle(0xcda444); g.fillRect(x, y + 88, 52, 12);
+        g.fillStyle(0xffd354); g.fillRect(x, y + 88, 52, 12);
         g.lineStyle(5, 0x252a2d);
         for (let stripe = 0; stripe < 45; stripe += 13) g.lineBetween(x + stripe, y + 88, x + stripe + 10, y + 100);
-        g.fillStyle(0x738087); g.fillCircle(x + 26, y + 30, 14);
+        g.fillStyle(0x69b3ba); g.fillCircle(x + 26, y + 30, 14);
         g.fillStyle(0x2b3339); g.fillCircle(x + 26, y + 30, 9);
       }
     }
@@ -121,7 +121,7 @@ export function drawDesertRoad(scene: Phaser.Scene, city = false, industrial = f
   }
   for (let i = 0; i < (city ? 0 : 12); i++) {
     const y = 80 + i * 66, x = i % 2 ? 765 : 30;
-    g.lineStyle(5,0x647044); g.lineBetween(x,y,x,y+28);
+    g.lineStyle(5,0x4ca86a); g.lineBetween(x,y,x,y+28);
     g.lineBetween(x-8,y+8,x-8,y+17); g.lineBetween(x-8,y+17,x+8,y+17);
     g.lineBetween(x+8,y+17,x+8,y+3);
   }
